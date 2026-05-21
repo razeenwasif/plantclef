@@ -1,0 +1,14 @@
+{
+    "oracle_s123": {
+        "name": "oracle_s123",
+        "type": "seed",
+        "path": "",
+        "resolution": 0,
+        "status": "training",
+        "accuracy": 0.0,
+        "epoch": 0,
+        "step": 0,
+        "last_updated": "2026-05-08 20:06:28",
+        "metadata": {}
+    }
+}

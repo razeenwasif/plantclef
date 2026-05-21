@@ -1,0 +1,50 @@
+# PlantCLEF 2026 — Inference config (cRT Dual-Head).
+# Uses the BioCLIP/DINOv3/ConvNeXt ensemble with Head A (Standard) and Head B (Balanced).
+
+model:
+  checkpoints:
+    - path: "models/crt/head_a_standard_best.pth"
+      resolution: 224
+
+  num_classes:  7808
+  resolution:   224
+  bioclip:      "hf-hub:imageomics/bioclip-2"
+  dinov3:       "vit_large_patch16_dinov3.lvd1689m"
+  convnext:     "convnextv2_large.fcmae_ft_in22k_in1k_384"
+
+dataset:
+  test_csv:  "/workspace/plantclef/kaggle_uploads/test/PlantCLEF2025_test.csv"
+  img_dir:   "/workspace/plantclef/processed/test_images_jpeg85_max800"
+
+tiling:
+  enabled:    true
+  tile_size:  224
+  overlap:    0.25
+  scales:     [1.0]
+
+inference:
+  batch_size:        256
+  num_workers:       16
+  aggregation:       "bayesian_veg"
+  disable_logit_standardization: false
+  ensemble_weights:  [1.0]
+
+  use_hflip_tta:     true
+  use_ttt:           false
+
+postprocess:
+  threshold:                  0.3
+  top_k:                      10
+  min_predictions:            1
+  
+  logit_adj_tau:              0.01
+  min_vegetation_frac:        0.15
+  sam_max_instances:          96
+
+  use_pav_calibration:        false
+  use_phenology:              true
+  use_geochem:                true
+
+output:
+  species_mapping: "/workspace/plantclef/processed/species_ids_mapping.csv"
+  submission_csv:  "submissions/submission_crt.csv"

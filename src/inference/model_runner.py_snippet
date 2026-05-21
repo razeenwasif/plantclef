@@ -1,0 +1,134 @@
+    def __init__(
+        self,
+        checkpoint_path: Path,
+        num_classes_: int = 7806,
+        input_res: int = 448,
+        device: str = "cuda",
+        bioclip_name: str = "hf-hub:imageomics/bioclip-2",
+        dinov3_name: str = "vit_large_patch16_dinov3.lvd1689m",
+        convnext_name: str = "convnextv2_large.fcmae_ft_in22k_in1k_384",
+        use_region_features: bool = False,
+        use_zero_shot: bool = False,
+        zero_shot_path: Optional[str] = None,
+        zero_shot_weight: float = 0.3,
+        zero_shot_temp: float = 0.07,
+    ) -> None:
+        """Initialize the ensemble and load weights."""
+        try:
+            import sys
+            # Ensure src/ is importable when running from project root.
+            src_root = Path(__file__).resolve().parent.parent
+            if str(src_root) not in sys.path:
+                sys.path.insert(0, str(src_root))
+            from models.ensemble import PlantEnsemble
+        except ImportError as exc:
+            raise ImportError(
+                "Could not import PlantEnsemble from src/models/ensemble.py. "
+                "Make sure you are running from the project root or that src/ "
+                "is on your PYTHONPATH."
+            ) from exc
+
+        self._num_classes = num_classes_
+        
+        # 1. Initialize architecture on CPU
+        logger.info("Initializing architecture on CPU...")
+        self._model = PlantEnsemble(
+            num_classes=num_classes_, 
+            input_res=input_res,
+            bioclip_name=bioclip_name,
+            dinov3_name=dinov3_name,
+            convnext_name=convnext_name,
+            use_region_features=use_region_features,
+            use_zero_shot=use_zero_shot,
+            zero_shot_path=zero_shot_path,
+            zero_shot_weight=zero_shot_weight,
+            zero_shot_temp=zero_shot_temp
+        ).cpu()
+
+        checkpoint_path = Path(checkpoint_path)
+        if checkpoint_path.exists():
+            logger.info("Loading checkpoint from %s onto CPU...", checkpoint_path)
+            ckpt = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
+            
+            # Extract state dict from common wrapper keys
+            if isinstance(ckpt, dict):
+                state = ckpt.get("module") or ckpt.get("state_dict") or ckpt.get("model_state") or ckpt.get("model_state_dict") or ckpt.get("model") or ckpt
+            else:
+                state = ckpt
+
+            # ORACLE: Detect if this is a teammate single-backbone model
+            # Teammate models use "backbone.base_model" instead of "bioclip.backbone"
+            is_teammate = not any(k.startswith('bioclip.') or k.startswith('dinov3.') or k.startswith('convnext.') for k in state.keys())
+            
+            if is_teammate:
+                logger.info("[Surgery] Teammate single-backbone model detected. Re-routing weights...")
+                self._model.ensure_backbones_loaded()
+                
+                # Determine target expert based on checkpoint metadata
+                config_str = str(ckpt.get('config', '')).lower()
+                if "bioclip" in str(checkpoint_path).lower() or "bioclip" in config_str:
+                    target_expert = "bioclip"
+                else:
+                    target_expert = "dinov3" # Default
+                
+                logger.info(f"[Surgery] Hijacking '{target_expert}' with teammate weights.")
+                
+                teammate_state = {}
+                for k, v in state.items():
+                    if k.startswith("backbone."):
+                        new_k = k.replace("backbone.", f"{target_expert}.backbone.")
+                        teammate_state[new_k] = v
+                    elif k.startswith("classifier.fc_final."): # Our head
+                        teammate_state[k] = v
+                    elif k.startswith("classifier."): # Standard head
+                        # Map teammate head to our fallback head
+                        teammate_state[f"phase1_head.{k.split('.', 1)[1]}"] = v
+                
+                # Perform the surgical load
+                self._model.load_state_dict(teammate_state, strict=False)
+                
+                # Hijack the forward pass for this specific instance
+                def teammate_forward(inst, x, *args, **kwargs):
+                    with torch.amp.autocast('cuda', dtype=torch.bfloat16):
+                        # Run only the relevant expert
+                        feat = getattr(inst, target_expert)(x)
+                        # Use the remapped head
+                        return inst.phase1_head(feat)
+                
+                import types
+                self._model.forward = types.MethodType(teammate_forward, self._model)
+                logger.info(f"[Surgery] Success. {target_expert} is now independent.")
+            
+            else:
+                # Standard Ensemble Loading
+                if any(k.startswith('_orig_mod.') for k in state.keys()):
+                    state = {k.replace('_orig_mod.', ''): v for k, v in state.items()}
+                
+                model_state = self._model.state_dict()
+                new_state = {}
+                remap_rules = {
+                    'bioclip.model.visual.': 'bioclip.backbone.',
+                    'bioclip.backbone.':     'bioclip.backbone.',
+                    'dinov2.backbone.':      'dinov3.backbone.',
+                    'convnext.backbone.':    'convnext.backbone.',
+                    'proj_grouped.0.':       'proj_linear.',
+                    'proj_grouped.1.':       'proj_ln.',
+                }
+
+                for k, v in state.items():
+                    remapped_k = k
+                    for old_p, new_p in remap_rules.items():
+                        if k.startswith(old_p):
+                            remapped_k = k.replace(old_p, new_p)
+                            break
+                    if remapped_k in model_state and v.shape == model_state[remapped_k].shape:
+                        new_state[remapped_k] = v
+
+                self._model.load_state_dict(new_state, strict=False)
+                logger.info(f"RESTORED {len(new_state)} ensemble layers on CPU.")
+
+        # 2. Move to device
+        target_device = _resolve_device(device)
+        logger.info("Moving model to target device: %s", target_device)
+        self._model = self._model.to(target_device)
+        self._model.eval()

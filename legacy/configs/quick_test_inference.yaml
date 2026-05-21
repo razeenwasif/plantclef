@@ -1,0 +1,38 @@
+paths:
+  image_dir: /workspace/plantclef/raw/test/data/PlantCLEF/PlantCLEF2025/DataOut/test/package/images/
+  output_dir: /workspace/working/
+  test_csv:   /workspace/plantclef/raw/test/data/PlantCLEF/PlantCLEF2025/DataOut/test/package/PlantCLEF2025_test.csv
+  species_csv: /workspace/plantclef/processed/species_ids_mapping.csv
+  checkpoint_paths:
+    - /workspace/working/best.pt
+
+tiling:
+  method:    grid
+  grid_size: 2 # Small grid for speed
+  tile_size: 512
+  stride:    512
+  scales:    [1.0]
+
+filter:
+  enabled: false
+
+model:
+  num_classes:  7806
+  input_size:   448
+  interpolation: lanczos
+  device:       cuda
+  amp_enabled:  true
+  batch_size:   1
+  num_workers:  1
+  use_compile:  false # DISABLED FOR TESTING
+
+aggregation:
+  method: mean
+
+postprocess:
+  global_threshold: 0.1
+  top_k: 1
+  min_predictions: 1
+
+submission_filename: test_inference.csv
+log_level: DEBUG

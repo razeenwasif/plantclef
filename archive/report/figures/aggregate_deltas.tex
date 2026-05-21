@@ -1,0 +1,38 @@
+% Chart H: Aggregate Macro F1 across submitted configurations, with delta annotations.
+% Source: Table tab:summary in main.tex.
+\begin{tikzpicture}
+  \begin{axis}[
+      width=0.95\linewidth, height=5.4cm,
+      ybar,
+      bar width=22pt,
+      enlarge x limits=0.18,
+      ymin=0.36, ymax=0.43,
+      ylabel={Public Macro F1},
+      symbolic x coords={Anchor, +cRT, +Genus, +Pheno.},
+      xtick=data,
+      xticklabel style={font=\small},
+      yticklabel style={font=\scriptsize},
+      ytick={0.36,0.38,0.40,0.42},
+      grid=major, grid style={dashed,gray!20},
+      nodes near coords,
+      nodes near coords style={font=\scriptsize, /pgf/number format/.cd, fixed, precision=3, /tikz/.cd},
+      every node near coord/.append style={anchor=south},
+    ]
+    \addplot+[fill=blue!60!black, draw=blue!60!black]
+      coordinates {(Anchor,0.41826)};
+    \addplot+[fill=red!60!black, draw=red!60!black]
+      coordinates {(+cRT,0.38195)};
+    \addplot+[fill=orange!70!black, draw=orange!70!black]
+      coordinates {(+Genus,0.41246)};
+    \addplot+[fill=teal!70!black, draw=teal!70!black]
+      coordinates {(+Pheno.,0.41346)};
+    % Anchor reference line
+    \draw[dashed, gray] (axis cs:Anchor,0.41826) -- (axis cs:+Pheno.,0.41826);
+    \node[font=\scriptsize, anchor=north, color=red!60!black]
+      at (axis cs:+cRT,0.38195) {$-0.036$};
+    \node[font=\scriptsize, anchor=north, color=orange!70!black]
+      at (axis cs:+Genus,0.41246) {$-0.006$};
+    \node[font=\scriptsize, anchor=north, color=teal!70!black]
+      at (axis cs:+Pheno.,0.41346) {$-0.005$};
+  \end{axis}
+\end{tikzpicture}

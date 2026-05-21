@@ -1,0 +1,22 @@
+# Phase 1 — Feature Extraction
+# Backbone forward passes over the full training set → memmap cache.
+# Only this phase reads this file.
+
+dataset:
+  csv_path: "/workspace/plantclef/processed/student_train_final.csv"
+  img_dir:  "/workspace/plantclef/raw/train/images_max_side_800/"
+
+model:
+  bioclip:   "hf-hub:imageomics/bioclip-2"
+  dinov3:    "vit_large_patch16_dinov3.lvd1689m"
+  convnext:  "convnextv2_large.fcmae_ft_in22k_in1k_384"
+  resolution: 224
+
+extraction:
+  batch_size:  512
+  num_threads: 16
+  output_dir:  "models/cuda_deep_sat"
+  cache_file:  "phase1_feature_cache.pt"
+
+hardware:
+  use_compile: false   # Compile is wasteful for pure extraction (one-shot)

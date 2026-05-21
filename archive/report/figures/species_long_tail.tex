@@ -1,0 +1,38 @@
+% Chart F: Species long-tail before vs after 500-cap (i003 manifest).
+% Source: chart_data.js SPECIES_LONG_TAIL.
+\begin{tikzpicture}
+  \begin{axis}[
+      width=0.95\linewidth, height=5.6cm,
+      ybar=2pt,
+      bar width=5pt,
+      enlarge x limits=0.06,
+      ymin=0,
+      ylabel={Number of species},
+      xlabel={Training images per species (bin upper bound)},
+      symbolic x coords={1,2,$\le$5,$\le$10,$\le$20,$\le$50,$\le$100,$\le$250,$\le$500,$\le$1k,$>$1k},
+      xtick=data,
+      xticklabel style={font=\scriptsize, rotate=0},
+      yticklabel style={font=\scriptsize},
+      ylabel near ticks,
+      legend style={at={(0.02,0.98)}, anchor=north west,
+                    font=\scriptsize, draw=none, fill=white,
+                    fill opacity=0.85, text opacity=1},
+      grid=major, grid style={dashed,gray!20},
+      nodes near coords={},
+    ]
+    \addplot+[fill=blue!50!black, draw=blue!50!black]
+      coordinates {
+        (1,145) (2,109) ($\le$5,445) ($\le$10,349) ($\le$20,445)
+        ($\le$50,698) ($\le$100,595) ($\le$250,1358) ($\le$500,1387)
+        ($\le$1k,2263) ($>$1k,12)
+      };
+    \addlegendentry{Before cap (i002 manifest, 2.65M rows)}
+    \addplot+[fill=orange!70!black, draw=orange!70!black]
+      coordinates {
+        (1,8) (2,9) ($\le$5,58) ($\le$10,71) ($\le$20,138)
+        ($\le$50,496) ($\le$100,1120) ($\le$250,2244) ($\le$500,3662)
+        ($\le$1k,0) ($>$1k,0)
+      };
+    \addlegendentry{After cap (i003 manifest, $\le$500 per species)}
+  \end{axis}
+\end{tikzpicture}

@@ -1,0 +1,157 @@
+% phenology_illustration.tex
+% Companion data-flow illustration for the seasonal phenology submission.
+% Inserted into a figure float:
+%   \begin{figure}[!ht]
+%     \centering
+%     \resizebox{\linewidth}{!}{\input{figures/phenology_illustration}}
+%     \caption{...}
+%     \label{fig:phenology_illustration}
+%   \end{figure}
+
+\begin{tikzpicture}[
+  x=1mm, y=1mm,
+  font=\sffamily\scriptsize,
+  >={Stealth[length=2.5pt,width=2.5pt]},
+  panel/.style={
+    draw=black!70, line width=0.4pt,
+    rounded corners=1.5pt
+  },
+  paneltitle/.style={
+    font=\sffamily\scriptsize\bfseries,
+    text=black!85,
+    align=center
+  },
+  panelsubtitle/.style={
+    font=\sffamily\tiny\itshape,
+    text=black!55,
+    align=center
+  },
+  arr/.style={->, line width=0.5pt, draw=black!70}
+]
+
+% Panel SW corners:
+%   P1 (24x22) at x=0
+%   P2 (24x22) at x=31
+%   P3 (24x22) at x=62
+%   P4 (28x22) at x=93
+%   P5 (34x22) at x=128
+
+% ========== Panel 1: Multi-scale tiling ==========
+\begin{scope}[shift={(0,0)}]
+  \fill[green!20, rounded corners=1.5pt] (0,0) rectangle (24,22);
+  \foreach \x/\y/\r in {
+    4/4/1.0, 11/15/0.8, 18/7/1.2, 8/18/0.9,
+    16/18/0.7, 13/3/0.7, 20/13/0.6, 5/11/0.6,
+    3/19/0.5, 21/3/0.6
+  } {
+    \fill[green!55!black, opacity=0.7] (\x,\y) circle (\r);
+  }
+  \foreach \i in {1,2,3} {
+    \draw[black!55, line width=0.3pt] (\i*6, 0) -- (\i*6, 22);
+    \draw[black!55, line width=0.3pt] (0, \i*5.5) -- (24, \i*5.5);
+  }
+  \draw[black!60, line width=0.35pt, dashed] (2.4,2.2) rectangle (21.6,19.8);
+  \draw[panel] (0,0) rectangle (24,22);
+  \node[paneltitle]    at (12, 24) {Multi-scale tiling};
+  \node[panelsubtitle] at (12, -2) {$4{\times}4$ grid, scales $\{1.0, 0.8\}$};
+\end{scope}
+
+% ========== Panel 2: ExG filter ==========
+\begin{scope}[shift={(31,0)}]
+  \foreach \i/\j in {
+    0/0, 1/0, 3/0, 0/1, 2/1, 3/1, 0/2, 1/2, 2/2, 3/2, 1/3, 2/3, 3/3
+  } {
+    \fill[green!55, opacity=0.85]
+      (\i*6, \j*5.5) rectangle (\i*6+6, \j*5.5+5.5);
+  }
+  \foreach \i/\j in {2/0, 1/1, 0/3} {
+    \fill[gray!40] (\i*6, \j*5.5) rectangle (\i*6+6, \j*5.5+5.5);
+    \draw[gray!70, line width=0.5pt]
+      (\i*6+1, \j*5.5+0.8) -- (\i*6+5, \j*5.5+4.7);
+    \draw[gray!70, line width=0.5pt]
+      (\i*6+1, \j*5.5+4.7) -- (\i*6+5, \j*5.5+0.8);
+  }
+  \foreach \i in {1,2,3} {
+    \draw[black!55, line width=0.3pt] (\i*6, 0) -- (\i*6, 22);
+    \draw[black!55, line width=0.3pt] (0, \i*5.5) -- (24, \i*5.5);
+  }
+  \draw[panel] (0,0) rectangle (24,22);
+  \node[paneltitle]    at (12, 24) {ExG filter};
+  \node[panelsubtitle] at (12, -2) {drop tiles $<\!15\%$ green};
+\end{scope}
+\draw[arr] (24, 11) -- (31, 11);
+
+% ========== Panel 3: Entropy-weighted aggregation ==========
+\begin{scope}[shift={(62,0)}]
+  \foreach \i/\j/\h in {
+    0/0/3.5, 1/0/2.0, 3/0/3.0,
+    0/1/4.0, 2/1/2.5, 3/1/3.8,
+    0/2/4.2, 1/2/3.5, 2/2/2.8, 3/2/3.0,
+    1/3/2.4, 2/3/3.2, 3/3/4.0
+  } {
+    \fill[green!22] (\i*6, \j*5.5) rectangle (\i*6+6, \j*5.5+5.5);
+    \fill[black!65] (\i*6+2.4, \j*5.5+0.6) rectangle (\i*6+3.6, \j*5.5+0.6+\h);
+  }
+  \foreach \i/\j in {2/0, 1/1, 0/3} {
+    \fill[gray!30] (\i*6, \j*5.5) rectangle (\i*6+6, \j*5.5+5.5);
+  }
+  \foreach \i in {1,2,3} {
+    \draw[black!55, line width=0.3pt] (\i*6, 0) -- (\i*6, 22);
+    \draw[black!55, line width=0.3pt] (0, \i*5.5) -- (24, \i*5.5);
+  }
+  \draw[panel] (0,0) rectangle (24,22);
+  \node[paneltitle]    at (12, 24) {Entropy weights};
+  \node[panelsubtitle] at (12, -2) {$w_t\!\propto\!\exp(-H_t)\!\cdot\!\mathrm{ExG}_t$};
+\end{scope}
+\draw[arr] (55, 11) -- (62, 11);
+
+% ========== Panel 4: Phenology curve ==========
+\begin{scope}[shift={(93,0)}]
+  \draw[black!60, line width=0.35pt, ->] (2.5, 3)   -- (27, 3);
+  \draw[black!60, line width=0.35pt, ->] (2.5, 3)   -- (2.5, 19);
+  \draw[black!80, line width=0.6pt, smooth, samples=50, domain=1:12]
+    plot ({2.5 + (\x - 1)/11 * 23}, {3 + 13 * exp(-((\x - 7.5)^2)/4)});
+  \draw[red!55!black, line width=0.5pt, dashed]
+    ({2.5 + 7/11 * 23}, 3) -- ({2.5 + 7/11 * 23}, 17);
+  \node[font=\tiny, text=red!55!black, anchor=south]
+    at ({2.5 + 7/11 * 23}, 17) {obs.\ date};
+  \node[font=\tiny, text=black!60] at (3,    1.6) {J};
+  \node[font=\tiny, text=black!60] at (14.5, 1.6) {J};
+  \node[font=\tiny, text=black!60] at (26,   1.6) {D};
+  \node[font=\tiny\itshape, text=black!60, rotate=90, anchor=south]
+    at (1.5, 11) {$P(s\!\mid\!d)$};
+  \draw[panel] (0,0) rectangle (28,22);
+  \node[paneltitle]    at (14, 24) {Phenology curve};
+  \node[panelsubtitle] at (14, -2) {GBIF DOY hist., $\beta\!=\!1.0$};
+\end{scope}
+\draw[arr] (86, 11) -- (93, 11);
+
+% ========== Panel 5: Species selection ==========
+\begin{scope}[shift={(128,0)}]
+  % bar origin at x=14; bars scale 0.20 -> 16mm
+  \draw[red!55!black, line width=0.5pt, dashed] (16.4, 2.5) -- (16.4, 20);
+  \node[font=\tiny, text=red!55!black, anchor=south] at (16.4, 20) {$T{=}0.03$};
+  \foreach \i/\p/\name/\sel in {%
+    0/0.165/{A.\ millefolium}/1,
+    1/0.118/{T.\ pratense}/1,
+    2/0.072/{L.\ perenne}/1,
+    3/0.041/{D.\ glomerata}/1,
+    4/0.018/{C.\ nigra}/0%
+  } {
+    \pgfmathsetmacro{\yrow}{18 - \i * 3.2}
+    \pgfmathsetmacro{\barlen}{\p / 0.20 * 16}
+    \ifnum\sel=1
+      \fill[black!70] (14, \yrow - 0.9) rectangle (14 + \barlen, \yrow + 0.9);
+    \else
+      \fill[gray!45]  (14, \yrow - 0.9) rectangle (14 + \barlen, \yrow + 0.9);
+    \fi
+    \node[font=\tiny, anchor=east, text=black!75]
+      at (13.4, \yrow) {\name};
+  }
+  \draw[panel] (0,0) rectangle (34,22);
+  \node[paneltitle]    at (17, 24) {Species selection};
+  \node[panelsubtitle] at (17, -2) {logit adj., emit $>\!T{=}0.03$};
+\end{scope}
+\draw[arr] (121, 11) -- (128, 11);
+
+\end{tikzpicture}

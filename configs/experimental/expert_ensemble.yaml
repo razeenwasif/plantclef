@@ -1,0 +1,58 @@
+# Expert Ensemble for PlantCLEF 2026
+# High-Resolution (512px) Specialists with Test-Time Training (TTT)
+
+model:
+  checkpoints:
+    - path: "models/cuda_deep_sat/expert_bioclip_512/swa_model_final_ALIGNED.pth"
+      resolution: 512
+    - path: "models/cuda_deep_sat/expert_dinov3_512/swa_model_final_ALIGNED.pth"
+      resolution: 512
+
+  num_classes:  7808
+  resolution:   512
+  bioclip:      "hf-hub:imageomics/bioclip-2"
+  dinov3:       "vit_large_patch16_dinov3.lvd1689m"
+  convnext:     "convnextv2_large.fcmae_ft_in22k_in1k_384"
+
+dataset:
+  test_csv:  "/workspace/plantclef/kaggle_uploads/test/PlantCLEF2025_test.csv"
+  img_dir:   "/workspace/plantclef/processed/test_images_jpeg85_max800"
+
+tiling:
+  enabled:    true
+  tile_size:  512
+  overlap:    0.3
+  scales:     [1.0, 0.8, 0.6]
+
+inference:
+  batch_size:        32              # Lower for 512px specialists
+  num_workers:       16
+  aggregation:       "mean"
+  disable_logit_standardization: false
+  ensemble_weights:  [0.6, 0.4]      # Favor BioCLIP Expert
+  
+  use_hflip_tta:     true
+  use_ttt:           true
+  ttt_steps:         15              # Denser TTT
+
+postprocess:
+  threshold:                  0.3
+  top_k:                      10
+  min_predictions:            1
+  
+  logit_adj_tau:              0.05   # Stronger adjustment for experts
+  min_vegetation_frac:        0.15
+
+  use_pav_calibration:        true
+  use_taxon_filter:           true
+  use_frank_wolfe:            true   
+  use_ising_model:            true
+  use_phenology:              true
+  use_geochem:                true
+  fw_top_k:                   5
+
+  use_retinex:                true
+
+output:
+  species_mapping: "/workspace/plantclef/processed/species_ids_mapping.csv"
+  submission_csv:  "submissions/submission_expert_ensemble.csv"

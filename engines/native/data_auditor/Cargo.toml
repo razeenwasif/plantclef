@@ -1,0 +1,28 @@
+[package]
+name = "data_auditor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "data_auditor"
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+
+[dependencies]
+pyo3 = { version = "0.21.0", features = ["extension-module"] }
+rayon = "1.10.0"
+indicatif = { version = "0.17.8", features = ["rayon"] }
+numpy = "0.21.0"
+bitvec = "1.0.1"
+jwalk = "0.8.1"
+polars = { version = "0.41.3", features = ["lazy", "csv", "ipc", "parquet"] }
+turbojpeg = "0.5.4"
+fast_image_resize = "4.2.2"
+image = { version = "0.25.1", default-features = false, features = ["jpeg"] }
+memmap2 = "0.9.5"
+rand = "0.8.5"
+

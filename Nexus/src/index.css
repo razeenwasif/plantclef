@@ -1,0 +1,108 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+/* Nexus palette. RGB triples for Tailwind alpha syntax (see tailwind
+ * config). Single theme — no umbrella-product palette switch.
+ *
+ * Pure-black canvas, white text, one cool ice-blue accent. The
+ * `--nexus-cyan` and `--nexus-pink` tokens point to a neutral zinc so
+ * components copied from the shared codebase that used Oracle's pink
+ * or cyan tints render as quiet monochrome variants instead of an
+ * unintended rainbow.
+ */
+:root {
+  --nexus-bg:     0 0 0;
+  --nexus-accent: 164 196 220;   /* soft ice-blue */
+  --nexus-cyan:   226 232 240;   /* zinc-200 (collapsed to neutral) */
+  --nexus-pink:   226 232 240;   /* same neutral */
+  --nexus-text:   255 255 255;
+  --nexus-muted:  161 169 184;
+}
+
+@layer base {
+  body {
+    @apply bg-oracle-bg text-oracle-text font-sans antialiased overflow-hidden;
+    margin: 0;
+  }
+}
+
+@layer components {
+  /* Glass panel — hairline border, restrained backdrop-blur, no
+   * colour-tinged glow. Tuned for the LightTrails canvas underneath. */
+  .glass-panel {
+    @apply relative overflow-hidden;
+    background: linear-gradient(145deg, rgba(8, 8, 12, 0.55) 0%, rgba(0, 0, 0, 0.4) 100%);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+  }
+
+  .glass-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent 60%, rgba(255,255,255,0.02));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .glass-button {
+    @apply flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+  }
+
+  .glass-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+  }
+
+  .glass-button.active {
+    @apply text-white;
+    background: rgba(164, 196, 220, 0.18);
+    border-color: rgba(164, 196, 220, 0.45);
+    box-shadow: 0 0 16px rgba(164, 196, 220, 0.18);
+  }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full shadow-[0_0_10px_currentColor];
+  }
+}
+
+/* Scrollbars */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+.nav-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) rgba(255, 255, 255, 0.04);
+}
+.nav-scrollbar::-webkit-scrollbar { height: 5px; }
+.nav-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+  margin: 0 8px;
+}
+.nav-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
+}
+.nav-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+}

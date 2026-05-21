@@ -1,0 +1,69 @@
+# Phase 2b — Teacher Expert: BioCLIP 512px Specialist
+# Heavy LoRA (r=512) at full resolution. Produces swa_model_final.pth for
+# teacher cache building.
+
+expert_name: "expert_bioclip_512"
+
+dataset:
+  csv_path:    "/workspace/plantclef/processed/student_train_final.csv"
+  cleaned_csv: "/workspace/plantclef/processed/resolved_build_df.csv"
+  img_dir:     "/workspace/plantclef/raw/train/images_max_side_800"
+  genus_ids:   "/workspace/plantclef/processed/genus_ids.pt"
+
+model:
+  bioclip:     "hf-hub:imageomics/bioclip-2"
+  dinov3:      "vit_large_patch16_dinov3.lvd1689m"
+  convnext:    "convnextv2_large.fcmae_ft_in22k_in1k_384"
+  num_classes: 7808
+  resolution:  512
+
+lora:
+  r:       512
+  alpha:   1024
+  dropout: 0.05
+
+curriculum:
+  warmup_epochs:  2    # 224px — option A: existing ep0+ep1 already cover this
+  middle_epochs:  0    # 448px stage disabled (time pressure)
+  high_epochs:    0    # 512px stage disabled (time pressure)
+
+training:
+  batch_size:         64     # Safe for 512px + LoRA r=512 on 96GB VRAM
+  accumulation_steps: 8      # Global batch = 64 × 3 GPUs × 8 = 1536
+  lr:                 2.0e-5
+  weight_decay:       0.05
+  val_every_n_epochs: 1
+  max_val_batches:    300
+  num_threads:        16
+
+swa:
+  start_epoch: 1    # Only average 512px refinement epochs (skip 224px warmup)
+  lr:          1.0e-5
+
+checkpoints:
+  warmup_baseline: "models/warmup_hardened.pth"
+  output_dir:      "models/cuda_deep_sat/expert_bioclip_512"
+
+hardware:
+  use_compile: true
+  use_fp8:     true
+
+presets:
+  rtx_6000_blackwell:
+    training:
+      batch_size: 64
+      accumulation_steps: 8
+  rtx_6000_blackwell_1x:
+    training:
+      batch_size: 64
+      accumulation_steps: 24
+  rtx_b200:
+    training:
+      batch_size: 768
+      accumulation_steps: 1
+      num_threads: 32
+  rtx_b300:
+    training:
+      batch_size: 192
+      accumulation_steps: 8
+      num_threads: 28

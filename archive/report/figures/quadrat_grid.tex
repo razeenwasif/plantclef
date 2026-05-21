@@ -1,0 +1,39 @@
+% Quadrat-grid figure — 6 test-set quadrats in a single row.
+% Each cell carries an abbreviated transect-code label above the image
+% (the full filenames live in the host caption).
+%
+% Required host preamble:
+%   \usepackage{graphicx}
+%   \usepackage{tikz}
+
+\begin{tikzpicture}[
+  every node/.style={inner sep=0pt, outer sep=0pt},
+  label/.style={font=\sffamily\scriptsize, text=black!70, align=center},
+]
+
+\def\cellw{27mm}
+\def\cellh{27mm}
+\def\colsep{1.5mm}
+
+% Six cells in a single row. Labels are the transect prefix so they fit
+% within the narrow cell; the full filename for each is given in the
+% host caption.
+\node[label]                                       (l1) at (0,                              0) {CBN-PdlC};
+\node[below=0.6mm of l1]                           (i1)                                       {\includegraphics[width=\cellw, height=\cellh, keepaspectratio=false]{images/quadrats/CBN-PdlC-A1-20130807.jpg}};
+
+\node[label, right=\colsep of l1.east, anchor=west](l2) {CBN-Pla};
+\node[below=0.6mm of l2]                           (i2) {\includegraphics[width=\cellw, height=\cellh, keepaspectratio=false]{images/quadrats/CBN-Pla-A1-20130808.jpg}};
+
+\node[label, right=\colsep of l2.east, anchor=west](l3) {GUARDEN};
+\node[below=0.6mm of l3]                           (i3) {\includegraphics[width=\cellw, height=\cellh, keepaspectratio=false]{images/quadrats/GUARDEN-CBNMed-10-1-16-34-20240429.jpg}};
+
+\node[label, right=\colsep of l3.east, anchor=west](l4) {LISAH-JAS};
+\node[below=0.6mm of l4]                           (i4) {\includegraphics[width=\cellw, height=\cellh, keepaspectratio=false]{images/quadrats/LISAH-JAS-0-1-20220505.jpg}};
+
+\node[label, right=\colsep of l4.east, anchor=west](l5) {OPTMix};
+\node[below=0.6mm of l5]                           (i5) {\includegraphics[width=\cellw, height=\cellh, keepaspectratio=false]{images/quadrats/OPTMix-0108-P1-312-20231006.jpg}};
+
+\node[label, right=\colsep of l5.east, anchor=west](l6) {RNNB};
+\node[below=0.6mm of l6]                           (i6) {\includegraphics[width=\cellw, height=\cellh, keepaspectratio=false]{images/quadrats/RNNB-1-1-20230512.jpg}};
+
+\end{tikzpicture}

@@ -1,0 +1,58 @@
+# PlantCLEF 2026 - Inference Pipeline Config
+# -------------------------------------------
+# Run with:
+#   python main/run_inference.py --config configs/inference.yaml
+
+paths:
+  image_dir: /workspace/plantclef/kaggle_uploads/test/images/
+  output_dir: /workspace/plantclef/outputs/
+  test_csv:   /workspace/plantclef/kaggle_uploads/test/PlantCLEF2025_test.csv
+  species_csv: /workspace/plantclef/processed/species_ids_mapping.csv
+  checkpoint_paths:
+    - /workspace/PlantCLEF2026/models/swa_ensemble_final.pth
+    # Add more checkpoints here for ensembling:
+    # - /workspace/plantclef/checkpoints/ensemble_run2.pth
+
+tiling:
+  method:    sliding
+  grid_size: 5
+  tile_size: 518       # Paper: 518x518px squares
+  stride:    172       # Paper: taken every 172px
+  scales:    [1.0, 0.7076] # Paper: 732x732px down-scaled so longer side is 518px (518/732 = 0.7076)
+
+filter:
+  enabled:              true   # Enabled for 20-40% speedup
+  min_variance:         10.0   
+  min_laplacian_var:    10.0   
+  min_vegetation_ratio: 0.01   
+
+model:
+  num_classes:  7806
+  input_size:   448    
+  interpolation: lanczos
+  logit_adj_path: /workspace/plantclef/processed/logit_adj.npy
+  device:       cuda
+  amp_enabled:  true
+  batch_size:   128    
+  num_workers:  8      
+  use_compile:  true    
+
+aggregation:
+  method:      max        # Paper: simple max-pooling across scales, not averaging
+  k:           5          # only used by topk_mean
+  temperature: 1.0     
+  top_p_percentile: null  # e.g. 80 to drop bottom 20% of tiles
+
+ensemble:
+  weights: null        # null = uniform; or e.g. [0.6, 0.4] for two models
+
+postprocess:
+  global_threshold: 0.10   # primary threshold for multi-label selection
+  per_class_thresholds: null  # e.g. {42: 0.05, 7001: 0.20}
+  top_k: 3                 # Arjun's best was top_n=3
+  min_predictions: 1       # guarantee at least this many labels per image
+  use_few_shot_retrieval: true # ENABLED: FAISS Fallback for uncertainty
+  solve_quadrat_consistency: true # ENABLED: Neuro-Symbolic Logic
+
+submission_filename: submission.csv
+log_level: INFO

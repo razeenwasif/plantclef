@@ -1,0 +1,15 @@
+# Oracle: Dataset Configuration Registry
+
+plantnet300k:
+  type: "pre_split"
+  root: "/mnt/d/PlantNet-300k/images/images"
+  train_dir: "train"
+  val_dir: "val"
+  test_dir: "test"
+  layout: "folder_per_class"
+
+plantclef2026:
+  type: "flat"
+  root: "/mnt/d/datasets/plantclef2026"
+  val_ratio: 0.1
+  layout: "folder_per_class"

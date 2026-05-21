@@ -1,0 +1,141 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{mlgcn}
+\citation{iagcn}
+\citation{gcnlpa}
+\citation{runcsp}
+\citation{anycsp}
+\citation{ecognn}
+\@writefile{toc}{\contentsline {section}{\numberline {1}\hskip -1em.~Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}\hskip -1em.~Related Work}{1}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}\hskip -1em.~Methodology}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}\hskip -1em.~Gated Feature Aggregation (GFAM)}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}\hskip -1em.~High-Resolution Knowledge Distillation (HR-KD) with Pre-Cached Logits}{2}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}\hskip -1em.~Mixed-Resolution Inference Ensembling}{2}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}\hskip -1em.~Neuro-Symbolic GCN Head with Phylogenetic Blending}{2}{subsection.3.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Inference pipeline of the headline submission. Each quadrat is sliced into a multi-scale grid of $448$\,px tiles, gated by an ExG vegetation filter, and forwarded through the partially-fine-tuned BioCLIP 2.5 ViT-H/14 at both $224$ and $336$ pixels. The within-image posterior is computed by entropy-weighted Bayesian aggregation (weight $\propto e^{-H_t}\cdot \mathrm  {ExG}_t$), the two resolutions are fused by weighted mean, and post-processing applies the GBIF phenology penalty, class-prior logit adjustment ($\tau {=}0.25$), and an adaptive sigmoid threshold ($T{=}0.03$). Dashed groupings indicate execution scope: pre-processing (per image), visual posterior (per tile, then per model), and post-processing (per image).}}{3}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:pipeline}{{1}{3}{Inference pipeline of the headline submission. Each quadrat is sliced into a multi-scale grid of $448$\,px tiles, gated by an ExG vegetation filter, and forwarded through the partially-fine-tuned BioCLIP 2.5 ViT-H/14 at both $224$ and $336$ pixels. The within-image posterior is computed by entropy-weighted Bayesian aggregation (weight $\propto e^{-H_t}\cdot \mathrm {ExG}_t$), the two resolutions are fused by weighted mean, and post-processing applies the GBIF phenology penalty, class-prior logit adjustment ($\tau {=}0.25$), and an adaptive sigmoid threshold ($T{=}0.03$). Dashed groupings indicate execution scope: pre-processing (per image), visual posterior (per tile, then per model), and post-processing (per image)}{figure.caption.1}{}}
+\newlabel{fig:pipeline@cref}{{[figure][1][]1}{[1][2][]3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}\hskip -1em.~Asymmetric Dual-Teacher Distillation (AD-TD)}{4}{subsection.3.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}\hskip -1em.~Hierarchical Taxonomic Loss (HTL)}{4}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.7}\hskip -1em.~Agentic Computer Vision via LLM Arbitration}{4}{subsection.3.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.8}\hskip -1em.~Logical Reasoning via Loopy Belief Propagation (BP)}{4}{subsection.3.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.9}\hskip -1em.~Physical Identity Coherence (DSU Clustering)}{4}{subsection.3.9}\protected@file@percent }
+\citation{webdataset}
+\citation{radford2021clip}
+\citation{dali}
+\citation{oquab2023dinov2}
+\citation{mohan2021bottlenecks}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.10}\hskip -1em.~Polyglot Systems Architecture}{5}{subsection.3.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.11}\hskip -1em.~Data Engineering \& High-Throughput Sharding}{5}{subsection.3.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.12}\hskip -1em.~Distributed Multi-Node Optimization}{5}{subsection.3.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.13}\hskip -1em.~Numerical Fortress \& Training Resilience}{5}{subsection.3.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.14}\hskip -1em.~Hardware-Specific Compute Optimizations}{6}{subsection.3.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.15}\hskip -1em.~High-Throughput Vectorized Multi-Scale TTA}{6}{subsection.3.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.16}\hskip -1em.~Inference Acceleration: Model Compilation \& CUDA Graphs}{6}{subsection.3.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.17}\hskip -1em.~High-Speed ExG Vegetation Aggregation (bayesian\_veg)}{7}{subsection.3.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.18}\hskip -1em.~SAM Noise Masking}{7}{subsection.3.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.19}\hskip -1em.~Retrieval-Augmented Classification (RAC)}{7}{subsection.3.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.20}\hskip -1em.~Dynamic Domain Adaptation via Test-Time Training (TTT)}{7}{subsection.3.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.21}\hskip -1em.~Uncertainty-Gated Selective Reasoning}{7}{subsection.3.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.22}\hskip -1em.~Domain Alignment via LUCAS Self-Supervision}{7}{subsection.3.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.23}\hskip -1em.~Exploratory Neuro-Symbolic Post-Processing}{7}{subsection.3.23}\protected@file@percent }
+\citation{macarthur_wilson}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.24}\hskip -1em.~Thermodynamic Phenological Priors via Boltzmann Activation}{8}{subsection.3.24}\protected@file@percent }
+\newlabel{sec:phenology}{{3.24}{8}{\texorpdfstring {\hskip -1em.~}{}Thermodynamic Phenological Priors via Boltzmann Activation}{subsection.3.24}{}}
+\newlabel{sec:phenology@cref}{{[subsection][24][3]3.24}{[1][8][]8}}
+\@writefile{toc}{\contentsline {paragraph}{Formulation.}{8}{section*.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Pdf estimation.}{8}{section*.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Coverage.}{8}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Empirical result.}{8}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.25}\hskip -1em.~Statistical Rigor via Conformal Prediction}{8}{subsection.3.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.26}\hskip -1em.~Meta-Learning via Prototypical Networks}{8}{subsection.3.26}\protected@file@percent }
+\citation{retinex_land}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.27}\hskip -1em.~Fused LoRA Engine}{9}{subsection.3.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.28}\hskip -1em.~ORACLE: Speed-of-Light Hardware Satiation}{9}{subsection.3.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.29}\hskip -1em.~Distributed Cluster Network Satiation}{9}{subsection.3.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.30}\hskip -1em.~Physics-Informed Preprocessing via Multi-Scale Retinex (MSR)}{9}{subsection.3.30}\protected@file@percent }
+\citation{consistent_fw}
+\citation{macarthur_wilson}
+\citation{duo_focal}
+\citation{hierarchical_calib}
+\citation{submodular_vision}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.31}\hskip -1em.~Provable Multi-Label Selection via Frank-Wolfe with Island Biogeography Prior}{10}{subsection.3.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.32}\hskip -1em.~Duality-Derived Asymmetric Loss}{10}{subsection.3.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.33}\hskip -1em.~Hierarchical Calibration via PAV-Tree}{10}{subsection.3.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.34}\hskip -1em.~Submodular Tile Selection}{10}{subsection.3.34}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}\hskip -1em.~Experiments}{10}{section.4}\protected@file@percent }
+\newlabel{sec:experiments}{{4}{10}{\texorpdfstring {\hskip -1em.~}{}Experiments}{section.4}{}}
+\newlabel{sec:experiments@cref}{{[section][4][]4}{[1][10][]10}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}\hskip -1em.~Anchor and Within-Backbone Saturation}{10}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}\hskip -1em.~Pivot 1: Triple-Backbone Classifier Retraining (cRT)}{10}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}\hskip -1em.~Pivot 2: Genus / Family Co-occurrence Reranking}{11}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}\hskip -1em.~Pivot 3: Thermodynamic Phenological Prior}{11}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}\hskip -1em.~Aggregate Results}{11}{subsection.4.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces All four submitted configurations on the PlantCLEF 2026 hidden test set. The $\Delta $ shrinks monotonically as the priors become more information-theoretically orthogonal to the visual posterior --- a signature of i002 implicitly absorbing all three signals through training-distribution co-occurrence. \emph  {Stacks per row}: the i002 anchor is bare; both reranking and phenology pivots add Multi-Scale Retinex (MSR) preprocessing on top of the anchor; the cRT submission additionally integrates Frank-Wolfe sparse selection, PAV-Tree hierarchical calibration, and Conformal Prediction --- see the corresponding Pivot subsections for the explicit per-submission stacks.}}{11}{table.caption.7}\protected@file@percent }
+\newlabel{tab:summary}{{1}{11}{All four submitted configurations on the PlantCLEF 2026 hidden test set. The $\Delta $ shrinks monotonically as the priors become more information-theoretically orthogonal to the visual posterior --- a signature of i002 implicitly absorbing all three signals through training-distribution co-occurrence. \emph {Stacks per row}: the i002 anchor is bare; both reranking and phenology pivots add Multi-Scale Retinex (MSR) preprocessing on top of the anchor; the cRT submission additionally integrates Frank-Wolfe sparse selection, PAV-Tree hierarchical calibration, and Conformal Prediction --- see the corresponding Pivot subsections for the explicit per-submission stacks}{table.caption.7}{}}
+\newlabel{tab:summary@cref}{{[table][1][]1}{[1][11][]11}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}\hskip -1em.~Discussion}{11}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{On the pruning trio.}{12}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6}\hskip -1em.~Final Submission Strategy}{12}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}\hskip -1em.~Future Work}{12}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}\hskip -1em.~Asymmetric Dual-Teacher Distillation (AD-TD)}{12}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}\hskip -1em.~Agentic LLM Arbiter (Visual Chain of Thought)}{12}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}\hskip -1em.~Global Filter Networks (GFNet) \& Spectral Vision}{12}{subsection.7.3}\protected@file@percent }
+\bibcite{retinex_land}{{1}{}{{}}{{}}}
+\bibcite{macarthur_wilson}{{2}{}{{}}{{}}}
+\bibcite{ref1}{{3}{}{{}}{{}}}
+\bibcite{consistent_fw}{{4}{}{{}}{{}}}
+\bibcite{duo_focal}{{5}{}{{}}{{}}}
+\bibcite{hierarchical_calib}{{6}{}{{}}{{}}}
+\bibcite{submodular_vision}{{7}{}{{}}{{}}}
+\bibcite{sora}{{8}{}{{}}{{}}}
+\bibcite{ref2}{{9}{}{{}}{{}}}
+\bibcite{ref3}{{10}{}{{}}{{}}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.4}\hskip -1em.~Asynchronous Self-Healing Neural Networks}{13}{subsection.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.5}\hskip -1em.~Elastic/Funnel Hashing for Zero-RAM Metadata Indexing}{13}{subsection.7.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.6}\hskip -1em.~Extreme Memory-Constrained Computing: Square-Root Space Logic Evaluation}{13}{subsection.7.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8}\hskip -1em.~Conclusion}{13}{section.8}\protected@file@percent }
+\bibcite{ref4}{{11}{}{{}}{{}}}
+\bibcite{ref5}{{12}{}{{}}{{}}}
+\bibcite{ref6}{{13}{}{{}}{{}}}
+\bibcite{ref7}{{14}{}{{}}{{}}}
+\bibcite{ref8}{{15}{}{{}}{{}}}
+\bibcite{ref9}{{16}{}{{}}{{}}}
+\bibcite{ref10}{{17}{}{{}}{{}}}
+\bibcite{ref11}{{18}{}{{}}{{}}}
+\bibcite{ref12}{{19}{}{{}}{{}}}
+\bibcite{ref13}{{20}{}{{}}{{}}}
+\bibcite{ref14}{{21}{}{{}}{{}}}
+\bibcite{ref15}{{22}{}{{}}{{}}}
+\bibcite{ref16}{{23}{}{{}}{{}}}
+\bibcite{ref17}{{24}{}{{}}{{}}}
+\bibcite{ref18}{{25}{}{{}}{{}}}
+\bibcite{ref19}{{26}{}{{}}{{}}}
+\bibcite{ref20}{{27}{}{{}}{{}}}
+\bibcite{ref21}{{28}{}{{}}{{}}}
+\bibcite{ref22}{{29}{}{{}}{{}}}
+\bibcite{ref23}{{30}{}{{}}{{}}}
+\bibcite{ref24}{{31}{}{{}}{{}}}
+\bibcite{ref25}{{32}{}{{}}{{}}}
+\bibcite{ref26}{{33}{}{{}}{{}}}
+\bibcite{ref27}{{34}{}{{}}{{}}}
+\bibcite{ref28}{{35}{}{{}}{{}}}
+\bibcite{ref29}{{36}{}{{}}{{}}}
+\bibcite{ref30}{{37}{}{{}}{{}}}
+\bibcite{mlgcn}{{38}{}{{}}{{}}}
+\bibcite{iagcn}{{39}{}{{}}{{}}}
+\bibcite{gcnlpa}{{40}{}{{}}{{}}}
+\bibcite{runcsp}{{41}{}{{}}{{}}}
+\bibcite{anycsp}{{42}{}{{}}{{}}}
+\bibcite{ecognn}{{43}{}{{}}{{}}}
+\bibcite{mohan2021bottlenecks}{{44}{}{{}}{{}}}
+\bibcite{oquab2023dinov2}{{45}{}{{}}{{}}}
+\bibcite{radford2021clip}{{46}{}{{}}{{}}}
+\bibcite{webdataset}{{47}{}{{}}{{}}}
+\bibcite{dali}{{48}{}{{}}{{}}}
+\providecommand\NAT@force@numbers{}\NAT@force@numbers
+\gdef \@abspage@last{14}

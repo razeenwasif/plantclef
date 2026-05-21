@@ -1,0 +1,49 @@
+# PlantCLEF 2026 - Inference for Recovered 75.99% Model
+# ---------------------------------------------------
+# This model uses the v1 backbones (BioCLIP 1 + DINOv2)
+
+paths:
+  image_dir: /workspace/plantclef/raw/test/data/PlantCLEF/PlantCLEF2025/DataOut/test/package/images/
+  output_dir: /workspace/plantclef/outputs/recovered_v1/
+  test_csv:   /workspace/plantclef/raw/test/data/PlantCLEF/PlantCLEF2025_test.csv
+  species_csv: /workspace/plantclef/raw/test/data/PlantCLEF2026/species_ids.csv
+  checkpoint_paths:
+    - /workspace/PlantCLEF2026/models/archive/recovered_75pct_accuracy.pth
+
+model:
+  num_classes:  7806
+  input_size:   448
+  logit_adj_path: /workspace/plantclef/processed/logit_adj.npy
+  # Explicit architecture versions for this specific checkpoint
+  bioclip_name:  "hf-hub:imageomics/bioclip"
+  vit_name:      "vit_large_patch14_dinov2.lvd142m"
+  convnext_name: "convnextv2_large.fcmae_ft_in22k_in1k_384"
+  device:       cuda
+  amp_enabled:  true
+  batch_size:   16
+  num_workers:  4
+  
+  # BioCLIP Zero-Shot Residual Path
+  use_zero_shot: true
+  zero_shot_weight: 0.2
+  zero_shot_temp: 0.07
+
+  # Dual-Scale Region Features (Full + Center)
+  use_region_features: true
+
+tiling:
+  tile_size: 512
+  stride:    384
+
+filter:
+  enabled: false
+
+aggregation:
+  method:      max
+
+postprocess:
+  global_threshold: 0.05
+  top_k: 20
+  min_predictions: 1
+
+submission_filename: submission_recovered_75pct.csv

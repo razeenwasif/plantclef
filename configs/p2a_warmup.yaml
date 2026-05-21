@@ -1,0 +1,21 @@
+# Phase 2a — PCA Head Warmup
+# ResidualMLP trained on cached Phase 1 features. No backbone dependency.
+
+dataset:
+  feature_cache: "models/cuda_deep_sat/phase1_feature_cache.pt"
+  genus_ids:     "/workspace/plantclef/processed/genus_ids.pt"
+
+model:
+  in_features:      3328   # 768 (BioCLIP) + 1024 (DINOv3) + 1536 (ConvNeXt)
+  hidden_features:  2048
+  num_classes:      7808
+  dropout:          0.2
+
+training:
+  batch_size:    2048
+  lr:            1e-4
+  weight_decay:  0.01
+  epochs:        20
+
+output:
+  checkpoint: "models/warmup_hardened.pth"

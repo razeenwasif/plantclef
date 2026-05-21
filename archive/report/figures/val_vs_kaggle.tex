@@ -1,0 +1,52 @@
+% Chart C: Validation top-5 vs Kaggle Macro F1 across our twelve strongest runs.
+% Source: chart_data.js VAL_VS_KAGGLE.
+\begin{tikzpicture}
+  \begin{axis}[
+      width=0.95\linewidth, height=6.0cm,
+      xlabel={Validation top-5 accuracy (held-out single-plant)},
+      ylabel={Public Macro F1 (Kaggle)},
+      xmin=0.71, xmax=0.84,
+      ymin=0.28, ymax=0.44,
+      xtick={0.72,0.74,0.76,0.78,0.80,0.82},
+      ytick={0.30,0.34,0.38,0.42},
+      grid=major, grid style={dashed,gray!20},
+      legend style={at={(0.02,0.98)}, anchor=north west,
+                    font=\scriptsize, draw=none, fill=white,
+                    fill opacity=0.85, text opacity=1,
+                    cells={anchor=west}},
+      legend columns=2,
+      ylabel near ticks,
+      xlabel near ticks,
+      scatter/classes={
+        ours={mark=*,blue!70!black},
+        ssl={mark=triangle*,orange!80!black},
+        cap={mark=square*,green!50!black},
+        sweep={mark=diamond*,purple!70!black},
+        inat={mark=otimes*,teal!70!black},
+        best={mark=star,red,mark size=4pt}
+      },
+    ]
+    \addplot[scatter, only marks, mark size=2.5pt,
+             scatter src=explicit symbolic]
+      table[meta=label] {
+        x       y        label
+        0.7475  0.38333  ours
+        0.7726  0.30261  ssl
+        0.7329  0.33185  ssl
+        0.7858  0.37421  cap
+        0.8103  0.40041  cap
+        0.8204  0.38761  cap
+        0.7320  0.37455  sweep
+        0.7475  0.38333  sweep
+        0.7327  0.36919  sweep
+        0.8046  0.37506  inat
+        0.8255  0.37956  inat
+        0.8103  0.41826  best
+      };
+    \legend{010 anchor, SSL warmstart, i003 capped, Unfreeze sweep, 015 PC24+iNat, i002 best $\star$}
+    % Spearman fit line (illustrative, r approx 0.4)
+    \addplot[gray, dashed, thick, domain=0.72:0.83] {0.25 + 0.18*x};
+    \node[font=\scriptsize, gray, anchor=west]
+      at (axis cs:0.78,0.31) {$r \approx 0.4$};
+  \end{axis}
+\end{tikzpicture}

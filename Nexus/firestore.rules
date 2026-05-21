@@ -1,0 +1,128 @@
+rules_version = '2';
+
+// Nexus — standalone Firestore rules. Covers /users (for sign-in
+// + admin claim), /pods (live fleet inventory), /run_requests
+// (desired-state inbox for training runs), and /runs (observed
+// state). Identification-product collections (journal, apiKeys)
+// from the shared-codebase era live in the Oracle repo and are
+// intentionally absent here.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in [
+            'razeen.wasif66@gmail.com'
+           ];
+    }
+
+    function isAllowedTier(tier) {
+      return tier in ['free', 'pro', 'field'];
+    }
+
+    // ── users/{uid} ──────────────────────────────────────────────────────────
+    // Minimal user profile. Tier is retained from the shared codebase so
+    // future Nexus pricing tiers can use the same surface; today it's
+    // effectively just 'free' for all signed-in users.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.tier == 'free'
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'tier', 'createdAt', 'updatedAt']);
+
+      allow update: if isOwner(uid)
+        && isAllowedTier(request.resource.data.tier)
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow read, write: if isAdmin();
+
+      allow delete: if false;
+    }
+
+    // ── pods/{podId} ─────────────────────────────────────────────────────────
+    // Live pod inventory written by scripts/pod_agent.py.
+    //
+    //   { pod_id, display_name, accelerator: {kind, device_count, sku, memory_gb},
+    //     status, current_run_id, last_heartbeat, agent_version, capabilities,
+    //     utilisation, host }
+    match /pods/{podId} {
+      allow read: if isSignedIn();
+
+      // Only the pod agent writes its own document. The agent authenticates
+      // as a service account with a `pod_agent: true` custom claim and a
+      // `pod_id` claim pinning it to a single document. Admins keep a
+      // manual-repair escape hatch.
+      allow write: if isAdmin()
+                   || (isSignedIn()
+                       && request.auth.token.pod_agent == true
+                       && request.auth.token.pod_id == podId);
+    }
+
+    // ── run_requests/{requestId} ─────────────────────────────────────────────
+    // Desired-state inbox written by the Start-Run modal and claimed by the
+    // targeted pod's agent.
+    //
+    //   { request_id, target_pod_id, requested_by_uid, requested_at,
+    //     spec: { name, phase, seed, cluster_manifest_ref, resume_from,
+    //             env_overrides, extra_args },
+    //     status: 'pending' | 'claimed' | 'rejected',
+    //     claimed_run_id?, rejection_reason? }
+    match /run_requests/{requestId} {
+      allow read: if isAdmin()
+                  || (isSignedIn() && resource.data.requested_by_uid == request.auth.uid);
+
+      allow create: if isSignedIn()
+                    && request.resource.data.requested_by_uid == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.keys().hasAll(['target_pod_id', 'spec', 'status', 'requested_by_uid', 'requested_at'])
+                    && request.resource.data.spec.phase in ['p1', 'p2a', 'p2b', 'all'];
+
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && request.auth.token.pod_agent == true
+                        && request.auth.token.pod_id == resource.data.target_pod_id);
+
+      allow delete: if isAdmin();
+    }
+
+    // ── runs/{runId} ─────────────────────────────────────────────────────────
+    // Observed state of an in-flight training run, written by the owning
+    // pod's agent (scripts/run_monitor.py).
+    //
+    //   { run_id, pod_id, request_id, spec, started_at, finished_at,
+    //     status, exit_code, ranks, metrics, cancel_requested, log_url,
+    //     source }
+    match /runs/{runId} {
+      allow read: if isSignedIn();
+
+      allow create: if isAdmin()
+                    || (isSignedIn()
+                        && request.auth.token.pod_agent == true
+                        && request.resource.data.pod_id == request.auth.token.pod_id);
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && request.auth.token.pod_agent == true
+                        && resource.data.pod_id == request.auth.token.pod_id);
+
+      // The user who submitted the originating request can flip
+      // `cancel_requested` from false → true (and only that one field).
+      allow update: if isSignedIn()
+                    && resource.data.created_by_uid == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cancel_requested'])
+                    && request.resource.data.cancel_requested == true;
+
+      allow delete: if isAdmin();
+    }
+
+    // Lock everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

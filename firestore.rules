@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in [
+            'razeen.wasif66@gmail.com'
+           ];
+    }
+
+    function isAllowedTier(tier) {
+      return tier in ['free', 'pro', 'field'];
+    }
+
+    // ── users/{uid} ──────────────────────────────────────────────────────────
+    //   { email, displayName, tier, createdAt, updatedAt }
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.tier == 'free'
+        && request.resource.data.keys().hasOnly(['email', 'displayName', 'tier', 'createdAt', 'updatedAt']);
+
+      allow update: if isOwner(uid)
+        && isAllowedTier(request.resource.data.tier)
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow read, write: if isAdmin();
+
+      allow delete: if false;
+    }
+
+    // ── users/{uid}/journal/{entryId} ────────────────────────────────────────
+    match /users/{uid}/journal/{entryId} {
+      allow read, create, update, delete: if isOwner(uid);
+      allow read: if isAdmin();
+    }
+
+    // ── users/{uid}/apiKeys/{keyId} ──────────────────────────────────────────
+    // We store a SHA-256 hash of the secret, never the plaintext. The full
+    // key is shown to the user exactly once at creation time, then discarded.
+    match /users/{uid}/apiKeys/{keyId} {
+      allow read, create, delete: if isOwner(uid);
+      allow update: if isOwner(uid)
+        && request.resource.data.fullKeyHash == resource.data.fullKeyHash;
+      allow read: if isAdmin();
+    }
+
+    // The cluster-monitoring collections (/pods, /run_requests, /runs)
+    // moved with the Nexus shell to the standalone Nexus repo + Firebase
+    // project; rules for them live in nexus-cluster, not here.
+
+    // Lock everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

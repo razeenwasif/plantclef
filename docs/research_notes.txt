@@ -1,0 +1,230 @@
+What top teams used in recent PlantCLEF
+PlantCLEF 2024 (first multi-label quadrats)
+The organizers released state-of-the-art Vision Transformer backbones (ViT) pre-trained with DINOv2 self-supervised learning and then fine-tuned on PlantCLEF data for single-plant images.
+
+One official baseline and some teams converted the ViT backbone to a multi-label classifier by replacing the single-label head with a multi-label head (e.g., sigmoid outputs for all species) and training with multi-label losses.
+
+Some approaches used composite or “RICAP-style” training: assembling several species images into mosaics so that the model learns to predict multiple species simultaneously.
+
+Tiling-based inference was widely used: cutting high-res quadrat images into tiles, classifying each tile, and aggregating predictions (e.g., max or mean over tiles) to get per-image species probabilities.
+
+A published PlantCLEF 2024 solution (DINOv2 ViT)
+A documented team approach for 2024:
+
+Backbone: DINOv2 Vision Transformer (base and fine-tuned variants) as feature extractors.
+
+Training:
+
+Use DINOv2 features from tiles or resized images.
+
+Train a separate classifier on top of these embeddings for multi-label species prediction.
+
+Inference:
+
+Split each quadrat into a grid of tiles.
+
+Get per-tile probabilities, then aggregate (e.g., average, max, or learned pooling) to produce final per-image multi-label outputs.
+
+Engineering: Distributed processing (Spark) to handle the large dataset and heavy tiling.
+
+Earlier PlantCLEF (single-label but relevant backbones)
+PlantCLEF 2022/2023 focused on single-image plant identification but already shifted heavily to transformer architectures.
+
+The best 2023 systems used large ViT models pre-trained with masked-image/self-supervised objectives (e.g., MAE, DINO-like training) and then fine-tuned on big plant datasets.
+
+Older strong baselines used Inception-v4 / Inception-ResNet-v2 ensembles, plus multi-task heads for taxonomy levels (family/genus/species), and heavy augmentation.
+
+These show the pattern: strong pre-trained backbone (increasingly ViT/SSL), plus task-specific heads and ensembling.
+
+What the 2026 setup looks like
+PlantCLEF 2026 is again “Identify Multi-species Plants in Images of Vegetation Plots”, a multi-label classification problem on high-resolution quadrat images.
+
+The competition provides:
+
+Past PlantCLEF 2025 test images and metadata.
+
+2024 single-plant training metadata, species list, and complementary pseudo-quadrat URLs.
+
+The evaluation uses macro-averaged F1 per image, same as 2025: you must balance precision and recall across all labels for each quadrat.
+
+Because the organizers already release ViT+DINOv2 models and large single-plant datasets, most top teams for 2025/2026 are expected to stick with ViT-style architectures, heavy use of pretraining, and multi-label heads.
+
+Recommended model strategy for 2026
+Here’s a practical stack you can aim for this year.
+
+1. Backbone choice
+Strong starting options:
+
+ViT-DINOv2 models:
+
+Use the official ViT checkpoints provided by PlantCLEF (2024/2025 models) as frozen or partially fine-tuned backbones.
+
+Alternatively, public DINOv2 ViT-L/14 or ViT-B/16, then fine-tune on single-plant PlantCLEF data.
+
+Larger CNNs as backup/ensemble:
+
+ConvNeXt or EfficientNetV2 fine-tuned on single-plant images (for diversity in an ensemble).
+
+These were ancestor models in earlier CLEF tasks and still provide complementary inductive bias compared with ViT.
+
+2. Multi-label head and loss
+Use a multi-label classification head with per-class sigmoid outputs over all species (one logit per species ID).
+
+Losses to consider:
+
+Binary cross-entropy with class weighting or focal loss to handle severe class imbalance.
+
+Label-smoothing for multi-label can help prevent overconfidence, especially on rare species.
+
+Optionally, add a taxonomy-aware head (family/genus/species) like previous PlantCLEF multi-task systems to regularize predictions.
+
+3. Handling high-resolution quadrats
+You essentially choose between:
+
+Tiling-based approach (very standard now):
+
+Split each quadrat into overlapping or non-overlapping tiles.
+
+Apply the backbone+head to each tile.
+
+Aggregate tile predictions to get image-level probabilities (mean, max, attention-based pooling, or learned pooling).
+
+This is what both the 2024 overview and the DINOv2 team paper recommend and demonstrate.
+
+Resizing / multi-scale:
+
+Downscale the quadrat to a manageable resolution, run ViT on whole image plus a few higher-res crops.
+
+Fuse predictions across scales.
+
+Lower compute but may miss small species.
+
+Tiling + aggregation is currently the strongest pattern for these tasks.
+
+4. Training recipes that worked
+From past competitions and 2024 papers:
+
+Use single-plant images for pretraining / fine-tuning the backbone, then adapt to multi-label quadrats using weak supervision: treat quadrat labels as the union of species across tiles.
+
+Consider synthetic multi-label training: create composite images by placing multiple plants side by side (RICAP-inspired), and train the multi-label head on these composites to better match the test distribution.
+
+Heavy data augmentation: random crops, color jitter, CutMix/MixUp (adapted for multi-label), and random erasing, as successfully used in earlier CLEF submissions and ViT-based models.
+
+5. Ensembling and post-processing
+Model ensembles:
+
+Different backbones (ViT-L vs ViT-B, CNN vs ViT).
+
+Different resolutions or tiling strategies.
+
+Different seeds or loss variants (BCE vs focal).
+
+Score calibration and thresholding:
+
+Because metric is macro-F1 per image, you must tune species-wise or global thresholds on a validation set (or via cross-validation) rather than using a fixed 0.5.
+
+You can also enforce simple taxonomy constraints (e.g., if species predicted, ensure its genus/family is consistent), as explored in earlier identification tasks.
+
+6. Possible “edge” ideas for 2026
+Based on gaps mentioned in the 2024 overview:
+
+Better rejection of non-plant areas:
+
+Train a small segmentation or foreground detector to mask out soil/background before tiling or scoring, which the organizers highlight as impactful but computationally heavy.
+
+Self-supervised fine-tuning on quadrats:
+
+Use DINO-style SSL on the quadrat images themselves before supervised training; the 2024 overview suggests SSL is under-explored in this context and likely beneficial.
+
+Temporal/plot metadata fusion (if provided): use a simple MLP to fuse visual features with metadata during classification.
+
+Quick model options table
+Component	Proven past choice	2026-ready choice you can use	Notes
+Backbone	ViT-large with masked/SSL pretraining 
+DINOv2 ViT-B/L, PlantCLEF ViT models 
+Start from organizers’ checkpoints if possible.
+Training data	Single-plant images (millions) 
+2024 single-plant data + pseudo-quadrats 
+Pretrain on single-plant, adapt to quadrats.
+Label type	Single-label (older PlantCLEF) 
+Multi-label per-quadrat with sigmoid 
+Use BCE/focal, tune thresholds for F1.
+Image handling	Standard crops/resizing 
+Tiling-based inference with aggregation 
+Crucial for small species in big plots.
+Tricks	Multi-task taxonomy heads, augmentation 
+Synthetic composites (RICAP-style), SSL on quadrats, non-plant rejection 
+Good direction for gains.
+Ensembling	CNN ensembles (Inception variants) 
+Ensembles of ViT variants + CNNs	Calibrate for macro-F1 per image 
+.
+If you tell me your compute budget (e.g., 1–2 GPUs vs cluster) and framework (PyTorch/TF/Keras), I can sketch a concrete architecture and training schedule tailored to PlantCLEF 2026.
+
+what about bioclip or dinov3?
+Completed 2 steps
+Both BioCLIP and DINOv3 are very promising for PlantCLEF-style multi-label quadrats, but they play slightly different roles: BioCLIP is great for biological semantics and zero-/few-shot use, while DINOv3 is a very strong generic visual backbone similar in spirit to DINOv2 but stronger.
+
+BioCLIP for PlantCLEF
+BioCLIP is a CLIP-style vision–text model trained on TreeOfLife-10M (≈10M images, >450k taxa) specifically for organisms (plants, animals, fungi, etc.).
+
+It consistently outperforms generic CLIP and other baselines by 16–20 percentage points on many fine-grained biology tasks, including plant-related datasets.
+
+It learns a hierarchical representation aligned with the taxonomic tree of life, which is particularly useful when you care about families/genera as well as species or when labels are noisy.
+
+How you could use it in PlantCLEF:
+
+As a frozen feature extractor:
+
+Encode tiles or downsampled quadrats with the BioCLIP image encoder.
+
+Train a small multi-label classifier head on top of these embeddings for the PlantCLEF species list (exactly like DINOv2 embeddings, but with a biology-specialized backbone).
+
+As a zero-/few-shot teacher:
+
+Use zero-shot or text-prototype BioCLIP predictions as pseudo-labels on unlabeled quadrats or pseudo-quadrats, then train a supervised ViT/DINO model on those soft labels.
+
+For taxonomic priors or soft constraints:
+
+Because BioCLIP embeddings capture taxonomic structure, you could compute similarity between species-level prototypes to smooth or regularize predictions (e.g., penalize predictions that are far apart in BioCLIP space).
+
+Caveats:
+
+BioCLIP is not trained specifically on PlantCLEF species or quadrat imagery; you still need supervised fine-tuning for competitive leaderboard performance.
+
+The CLIP architecture is optimized for global image–text alignment, not necessarily tiny plants scattered in a quadrat, so tiling or region-based pooling remains important.
+
+DINOv3 versus DINOv2
+DINOv3 is Meta’s next-generation self-supervised ViT backbone, trained at huge scale (up to 1.7B images and multi-billion parameter models), and it matches or beats state-of-the-art models on many classification and dense prediction benchmarks, often without any fine-tuning.
+
+It extends the DINO family (which includes DINOv2 used in published PlantCLEF 2024 solutions) and is particularly strong for dense tasks and frozen-feature transfer.
+
+For PlantCLEF-style multi-label classification:
+
+You can mirror the successful DINOv2 approach from 2024 (ViT backbone + linear/multi-layer multi-label head) but swap in a DINOv3 ViT-B/L backbone.
+
+DINOv3’s strong dense features should pair well with a tiling-based strategy: encode each tile, pool tile embeddings or predictions, and train a multi-label head to predict quadrat-level species.
+
+Since DINOv3 is designed to work well even with frozen weights, you could feasibly:
+
+Freeze DINOv3, train only tile-level classifier and aggregator, and still get strong performance.
+
+Optionally unfreeze top layers for a PlantCLEF-specific fine-tune if you have compute.
+
+Which should you use this year?
+If you want biology-aware features and better zero-/few-shot behavior (e.g., for rare/long-tail species), BioCLIP is very attractive as a backbone or auxiliary teacher.
+
+If you want a drop-in upgrade of the DINOv2-style solutions that already did well in PlantCLEF 2024, DINOv3 is a natural candidate: same overall recipe, likely stronger features, especially with tiling.
+
+A pragmatic high-end 2026 setup could be:
+
+Main models:
+
+DINOv3 ViT-B/L (tiled, multi-label head, trained end-to-end or with frozen backbone).
+
+DINOv2 ViT (as in the 2024 paper) for complementary features.
+
+Auxiliary/ensemble model:
+
+BioCLIP image encoder feeding a smaller classifier head; its outputs included in an ensemble or used as pseudo-labels.
+
+If you tell me your GPU budget and whether you’re comfortable pulling from Hugging Face, I can outline a concrete configuration like “DINOv3-L + BioCLIP ensemble with tiling and thresholds,” including rough image sizes, batch sizes, and training steps.

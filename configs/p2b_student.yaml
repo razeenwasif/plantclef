@@ -1,0 +1,75 @@
+# Phase 2b — Student Model Fine-tuning
+# Full PlantEnsemble with LoRA, image-level training, teacher KD from cache.
+
+dataset:
+  csv_path:    "/workspace/plantclef/processed/student_train_final.csv"
+  cleaned_csv: "/workspace/plantclef/processed/resolved_build_df.csv"
+  img_dir:     "/workspace/plantclef/raw/train/images_max_side_800"
+  genus_ids:   "/workspace/plantclef/processed/genus_ids.pt"
+
+model:
+  bioclip:     "hf-hub:imageomics/bioclip-2"
+  dinov3:      "vit_large_patch16_dinov3.lvd1689m"
+  convnext:    "convnextv2_large.fcmae_ft_in22k_in1k_384"
+  num_classes: 7808
+
+lora:
+  r:       64
+  alpha:   128
+  dropout: 0.05
+
+curriculum:
+  warmup_epochs:  8    # bumped from 2 → 8 (model was collapsing on 2 epochs)
+  middle_epochs:  0
+  high_epochs:    0
+  warmup_res:     224  # optimal for patch_size=16 ViTs; try 192 for more speed
+
+teacher:
+  cache_path: "models/cuda_deep_sat/teacher_logit_cache.npy"
+  live_paths:
+    - "models/cuda_deep_sat/expert_bioclip_512/swa_model_final.pth"
+    - "models/cuda_deep_sat/expert_dinov3_512/swa_model_final.pth"
+  kd_alpha:   0.3    # weight for hard-label CE
+  kd_beta:    0.7    # weight for soft KL-div
+  kd_temp:    2.0
+
+training:
+  batch_size:         256   # 2× free VRAM vs 512px; same global batch with accum=2
+  accumulation_steps: 2
+  lr:                 2.0e-5
+  weight_decay:       0.05
+  val_every_n_epochs: 2
+  max_val_batches:    200
+  num_threads:        16
+
+swa:
+  start_epoch: 0    # average both checkpoints
+  lr:          5.0e-6
+
+checkpoints:
+  warmup_baseline: "models/warmup_hardened.pth"
+  output_dir:      "models/cuda_deep_sat/student"
+
+hardware:
+  use_compile: true
+  use_fp8:     true
+
+presets:
+  rtx_6000_blackwell:
+    training:
+      batch_size: 128
+      accumulation_steps: 4
+  rtx_6000_blackwell_1x:
+    training:
+      batch_size: 128
+      accumulation_steps: 12
+  rtx_b200:
+    training:
+      batch_size: 256
+      accumulation_steps: 6
+      num_threads: 24
+  rtx_b300:
+    training:
+      batch_size: 384
+      accumulation_steps: 4
+      num_threads: 28

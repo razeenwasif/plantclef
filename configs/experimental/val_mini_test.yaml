@@ -1,0 +1,51 @@
+# Mini-Val Validation Run
+# Goal: Calculate Absolute Local Macro F1 on Unseen Ground Truth
+
+model:
+  checkpoints:
+    - path: "/workspace/working/best.pt"
+      resolution: 512
+    - path: "models/cuda_deep_sat/expert_bioclip_512/swa_model_final_ALIGNED.pth"
+      resolution: 512
+    - path: "models/cuda_deep_sat/expert_dinov3_512/swa_model_final_ALIGNED.pth"
+      resolution: 512
+
+  num_classes:  7808
+  resolution:   512
+
+dataset:
+  test_csv:  "data/mini_val_inference.csv"
+  img_dir:   "data/mini_val_images"
+
+tiling:
+  enabled:    true
+  tile_size:  512
+  overlap:    0.25
+  scales:     [1.0] # Speed up for val test
+
+inference:
+  batch_size:        128
+  num_workers:       16
+  aggregation:       "bayesian_veg"
+  disable_logit_standardization: false
+  
+  use_hflip_tta:     false
+  use_ttt:           false # Disabled for objective baseline
+
+postprocess:
+  threshold:                  0.3
+  top_k:                      10
+  min_predictions:            1
+  min_vegetation_frac:        0.15
+
+  use_pav_calibration:        true
+  use_taxon_filter:           true
+  use_frank_wolfe:            true
+  use_ising_model:            true
+  use_phenology:              true
+  use_geochem:                true
+  fw_top_k:                   5
+
+output:
+  species_mapping: "/workspace/plantclef/processed/species_ids_mapping.csv"
+  submission_csv:  "submissions/mini_val_results.csv"

@@ -1,0 +1,131 @@
+% Shared inference-pipeline figure for both
+%   archive/report/main.tex            (CEUR-ART)
+%   paper/plantclef2026_research_paper.tex (CVPR-style)
+%
+% Required preamble in the host document:
+%   \usepackage{tikz}
+%   \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+%
+% Inserted into a figure float, e.g.:
+%   \begin{figure*}[t]
+%     \centering
+%     \input{figures/inference_pipeline}
+%     \caption{...}
+%     \label{fig:pipeline}
+%   \end{figure*}
+%
+% Dimensions chosen to fit a two-column figure* float on US Letter; if you
+% need single-column, wrap in \resizebox{\linewidth}{!}{...}.
+
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  node distance=8pt and 14pt,
+  >={Stealth[length=4pt,width=4pt]},
+  every node/.style={transform shape},
+  stage/.style={
+    draw=black!75, line width=0.4pt,
+    rounded corners=2.4pt,
+    fill=black!3,
+    minimum width=44mm, minimum height=10.5mm,
+    align=center, inner sep=4pt
+  },
+  io/.style={
+    draw=black!75, line width=0.4pt,
+    rounded corners=2.4pt, fill=white,
+    minimum width=44mm, minimum height=8mm,
+    align=center, inner sep=4pt
+  },
+  emph/.style={
+    draw=black!75, line width=0.4pt,
+    rounded corners=2.4pt, fill=black!8,
+    minimum width=44mm, minimum height=11.5mm,
+    align=center, inner sep=4pt
+  },
+  scope/.style={
+    draw=black!55, line width=0.3pt, dashed,
+    rounded corners=3pt, fill=black!0,
+    inner sep=10pt
+  },
+  scopelabel/.style={
+    fill=white, inner sep=2pt,
+    font=\sffamily\scriptsize\itshape,
+    text=black!65
+  },
+  flow/.style={->, line width=0.45pt, draw=black!70},
+  flowdashed/.style={->, line width=0.45pt, draw=black!55, dashed},
+  param/.style={
+    font=\sffamily\scriptsize,
+    text=black!55,
+    align=left,
+    inner sep=1pt
+  },
+]
+
+% ── Column of stages (top to bottom) ─────────────────────────────────────
+\node[io]    (img)    {Quadrat image \\
+                       \small\itshape (raw RGB)};
+\node[stage] (tiles)  [below=of img]    {Multi-scale grid tiling \\
+                                          {\scriptsize $4{\times}4$ @ $448$\,px · scales $\{1.0, 0.8\}$}};
+\node[stage] (veg)    [below=of tiles]  {ExG vegetation filter \\
+                                          {\scriptsize drop tiles with $<\!15\%$ green pixels}};
+\node[emph]  (fwd)    [below=of veg]    {BioCLIP 2.5 \,ViT-H/14 (last $4$ blocks unfrozen) \\
+                                          {\scriptsize forward at $224$\,px \quad+\quad forward at $336$\,px}};
+\node[stage] (agg)    [below=of fwd]    {Per-tile Bayesian aggregation \\
+                                          {\scriptsize $w_t = \exp(-H_t)\cdot \mathrm{ExG}_t$, softmax-weighted mean}};
+\node[stage] (xres)   [below=of agg]    {Cross-resolution fusion \\
+                                          {\scriptsize weighted mean of $224$\,px / $336$\,px probabilities}};
+\node[stage] (phen)   [below=of xres]   {Phenology penalty \\
+                                          {\scriptsize Boltzmann-weighted GBIF day-of-year prior, $\beta{=}1.0$}};
+\node[stage] (la)     [below=of phen]   {Class-prior logit adjustment \\
+                                          {\scriptsize $z' = z - \tau \log \tilde{\pi}_s$, $\tau{=}0.25$}};
+\node[stage] (thr)    [below=of la]     {Sigmoid \,+\, adaptive threshold \\
+                                          {\scriptsize emit $\{s : \sigma(z'_s) > T\}$, $T{=}0.03$, $k_{\min}{=}2$}};
+\node[io]    (out)    [below=of thr]    {Species set \\
+                                          \small\itshape (Macro-F1 0.418)};
+
+% ── Sequential arrows ────────────────────────────────────────────────────
+\draw[flow] (img)   -- (tiles);
+\draw[flow] (tiles) -- (veg);
+\draw[flow] (veg)   -- (fwd);
+\draw[flow] (fwd)   -- (agg);
+\draw[flow] (agg)   -- (xres);
+\draw[flow] (xres)  -- (phen);
+\draw[flow] (phen)  -- (la);
+\draw[flow] (la)    -- (thr);
+\draw[flow] (thr)   -- (out);
+
+% ── Scope groupings on the left ─────────────────────────────────────────
+\begin{pgfonlayer}{background}
+  \node[scope, fit=(tiles) (veg)] (s-input) {};
+  \node[scopelabel, anchor=east] at ($(s-input.north west)+(-2pt,-7pt)$) {Pre-processing};
+
+  \node[scope, fit=(fwd) (agg) (xres)] (s-model) {};
+  \node[scopelabel, anchor=east] at ($(s-model.north west)+(-2pt,-7pt)$) {Visual posterior};
+
+  \node[scope, fit=(phen) (la) (thr)] (s-post) {};
+  \node[scopelabel, anchor=east] at ($(s-post.north west)+(-2pt,-7pt)$) {Post-processing};
+\end{pgfonlayer}
+
+% ── Side-band: parameter callouts on the right ──────────────────────────
+\node[param, right=14pt of tiles.east, anchor=west] (p1)
+  {\textbf{16 tiles}/scale $\times\ 2$ scales};
+\node[param, right=14pt of fwd.east,   anchor=west] (p2)
+  {\textbf{2 forwards} per tile \\ (resolution ensemble)};
+\node[param, right=14pt of agg.east,   anchor=west] (p3)
+  {weight $\propto \exp(-H_t)$};
+\node[param, right=14pt of phen.east,  anchor=west] (p4)
+  {month $\rightarrow$ Boltzmann};
+\node[param, right=14pt of la.east,    anchor=west] (p5)
+  {Laplace-smoothed prior};
+\node[param, right=14pt of thr.east,   anchor=west] (p6)
+  {$T = 0.03$, $\tau = 0.25$};
+
+% Faint connectors between side band and main column
+\draw[flowdashed] (tiles.east) -- (p1.west);
+\draw[flowdashed] (fwd.east)   -- (p2.west);
+\draw[flowdashed] (agg.east)   -- (p3.west);
+\draw[flowdashed] (phen.east)  -- (p4.west);
+\draw[flowdashed] (la.east)    -- (p5.west);
+\draw[flowdashed] (thr.east)   -- (p6.west);
+
+\end{tikzpicture}

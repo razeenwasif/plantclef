@@ -1,0 +1,59 @@
+# Triage config — all priors and postprocess solvers OFF.
+# Used only to isolate whether the {0,1,2,3} class-index bias seen in the canonical
+# run comes from the priors/postprocess chain or from the raw model output.
+# Output written to submissions/submission_triage.csv to preserve the real one.
+
+model:
+  checkpoints:
+    - path: "/workspace/working/best.pt"
+      resolution: 224
+
+  num_classes:  7806
+  resolution:   224
+  bioclip:      "hf-hub:imageomics/bioclip-2.5-vith14"
+  dinov3:       "vit_large_patch16_dinov3.lvd1689m"
+  convnext:     "convnextv2_large.fcmae_ft_in22k_in1k_384"
+
+dataset:
+  test_csv:  "/workspace/plantclef/kaggle_uploads/test/PlantCLEF2025_test.csv"
+  img_dir:   "/workspace/plantclef/processed/test_images_jpeg85_max800"
+
+tiling:
+  enabled:    true
+  tile_size:  224
+  overlap:    0.25
+  scales:     [1.0, 0.8, 0.6, 0.4]
+
+inference:
+  batch_size:        256
+  num_workers:       32
+  aggregation:       "mean"
+  disable_logit_standardization: true
+  ensemble_weights:  [1.0]
+
+  use_hflip_tta:     true
+  use_ttt:           false             # TRIAGE: off
+  ttt_steps:         10
+
+postprocess:
+  threshold:                  0.3
+  top_k:                      10
+  min_predictions:            1
+
+  logit_adj_tau:              0.0      # TRIAGE: off (suspect #1 — rare-class boost)
+  min_vegetation_frac:        0.0      # TRIAGE: off
+  sam_max_instances:          96
+
+  use_pav_calibration:        false    # TRIAGE: off
+  use_taxon_filter:           false    # TRIAGE: off
+  use_frank_wolfe:            false    # TRIAGE: off
+  use_ising_model:            false    # TRIAGE: off
+  use_phenology:              false    # TRIAGE: off
+  use_geochem:                false    # TRIAGE: off
+  fw_top_k:                   5
+
+  use_retinex:                false    # TRIAGE: off (also a prior)
+
+output:
+  species_mapping: "/workspace/plantclef/processed/species_ids_mapping.csv"
+  submission_csv:  "submissions/submission_triage.csv"

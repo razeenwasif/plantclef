@@ -1,0 +1,59 @@
+# PlantCLEF 2026 — Inference config (canonical).
+# Add or swap checkpoints under `model.checkpoints` to ensemble more models.
+# Predecessor configs (winners_only/ultimate_ensemble/inference_v2/etc.) are in legacy/configs/.
+
+model:
+  checkpoints:
+    - path: "/workspace/scratch_space_arjun/PlantCLEF2026/src_experiments/010_bioclip25_end_to_end_finetune_multitask/outputs/last_blocks_8/checkpoints/best.pt"
+      resolution: 224                # 010 multitask end-to-end finetune (last 8 blocks). pos_embed=[257, 1280] → 224×224 input.
+
+  num_classes:  7806
+  resolution:   224
+  bioclip:      "hf-hub:imageomics/bioclip-2.5-vith14"
+  dinov3:       "vit_large_patch16_dinov3.lvd1689m"
+  convnext:     "convnextv2_large.fcmae_ft_in22k_in1k_384"
+
+dataset:
+  test_csv:  "/workspace/plantclef/kaggle_uploads/test/PlantCLEF2025_test.csv"
+  img_dir:   "/workspace/plantclef/processed/test_images_jpeg85_max800"
+
+tiling:
+  enabled:    true
+  tile_size:  224
+  overlap:    0.25
+  scales:     [1.0, 0.8]             # Champion config: 2 scales, ~half the tile count vs 4 scales
+
+inference:
+  batch_size:        256
+  num_workers:       16
+  aggregation:       "bayesian_veg"  # Champion config: entropy + ExG-weighted tile mean
+  disable_logit_standardization: true
+  ensemble_weights:  [1.0]
+
+  use_hflip_tta:     true
+  use_ttt:           false           # Champion config: TTT off (entropy only fell 7.5→7.3 with this model)
+  ttt_steps:         10
+
+postprocess:
+  threshold:                  0.3
+  top_k:                      10     # PlantCLEF eval: typical GT richness 3-7 species/quadrat;
+                                     #                F1 plateaus past 8-10, then precision dies.
+  min_predictions:            1
+  
+  logit_adj_tau:              0.01   # Restored to a conservative level to aid rare species
+  min_vegetation_frac:        0.15   # Winner Recipe filter
+  sam_max_instances:          96     # Ultra-dense coverage for 96GB VRAM
+
+  use_pav_calibration:        true
+  use_taxon_filter:           false  # Ablation 0.0000 F1 — anchor-bitset filter zeros all correct picks. Off until rebuilt.
+  use_frank_wolfe:            false  # Ablation 0.0000 F1 — solver vetoes correct species via taxonomic graph. Off.
+  use_ising_model:            false  # Ablation 0.0000 F1 — same root cause; Metropolis converges away from correct picks.
+  use_phenology:              true   # Ablation: passive (no harm), keep on; backed by real bloom-calendar matrix.
+  use_geochem:                true   # Ablation: passive (no harm), keep on; backed by EIVE compatibility matrix.
+  fw_top_k:                   5
+
+  use_retinex:                false  # 010 model wasn't trained with retinex; keep input distribution clean
+
+output:
+  species_mapping: "/workspace/plantclef/processed/species_ids_mapping.csv"
+  submission_csv:  "submissions/submission.csv"

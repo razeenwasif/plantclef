@@ -1,0 +1,35 @@
+paths:
+  test_csv: /workspace/plantclef/processed/experiment_quadrats.csv
+  image_dir: /workspace/plantclef/raw/train/images_max_side_800/
+  species_csv: /workspace/plantclef/processed/species_ids_mapping.csv
+  output_dir: /workspace/plantclef/outputs/experiment/
+  checkpoint_paths:
+    - /workspace/PlantCLEF2026/models/best_calibrated/mp_rank_00_model_states.pt
+
+tiling:
+  tile_size: 512
+  stride:    384
+  scales:    [1.0]
+
+filter:
+  enabled: false
+
+model:
+  num_classes: 7806
+  input_size:  384
+  logit_adj_path: /workspace/plantclef/processed/logit_adj.npy
+  device: cuda
+  amp_enabled: true
+
+aggregation:
+  method: mean
+
+ensemble:
+  method: mean
+
+postprocess:
+  global_threshold: 0.05
+  top_k: 20
+
+submission_filename: experiment_results.csv
+log_level: INFO

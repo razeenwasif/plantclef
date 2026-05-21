@@ -1,0 +1,33 @@
+paths:
+  image_dir: /workspace/plantclef/raw/test/data/PlantCLEF/PlantCLEF2025/DataOut/test/package/images/
+  output_dir: /workspace/plantclef/outputs/test/
+  test_csv:   /workspace/plantclef/raw/test/data/PlantCLEF/PlantCLEF2025_test.csv
+  species_csv: /workspace/plantclef/raw/test/data/PlantCLEF2026/species_ids.csv
+  checkpoint_paths:
+    - /workspace/PlantCLEF2026/models/archive/swa_ensemble_final.pth
+
+model:
+  num_classes:  7806
+  input_size:   448
+  bioclip_name:  "hf-hub:imageomics/bioclip"
+  vit_name:      "vit_large_patch14_dinov2.lvd142m"
+  convnext_name: "convnextv2_large.fcmae_ft_in22k_in1k_384"
+  device:       cuda
+  amp_enabled:  true
+  batch_size:   4
+  num_workers:  0
+
+tiling:
+  tile_size: 512
+  stride:    512 # No overlap for speed
+
+filter:
+  enabled: false
+
+aggregation:
+  method:      max
+
+postprocess:
+  global_threshold: 0.001
+  top_k: 5
+  min_predictions: 1

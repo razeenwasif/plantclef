@@ -1,0 +1,153 @@
+\begin{thebibliography}{12}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+\providecommand{\url}[1]{\texttt{#1}}
+\providecommand{\href}[2]{#2}
+\providecommand{\path}[1]{#1}
+\providecommand{\DOIprefix}{doi:}
+\providecommand{\ArXivprefix}{arXiv:}
+\providecommand{\URLprefix}{URL: }
+\providecommand{\Pubmedprefix}{pmid:}
+\providecommand{\doi}[1]{\href{http://dx.doi.org/#1}{\path{#1}}}
+\providecommand{\Pubmed}[1]{\href{pmid:#1}{\path{#1}}}
+\providecommand{\bibinfo}[2]{#2}
+\ifx\xfnm\relax \def\xfnm[#1]{\unskip,\space#1}\fi
+%Type = Inproceedings
+\bibitem[{Joly et~al.(2024)Joly, Go{\"e}au, Kahl, Picek, Castaneda, Lorieul,
+  Deneu, Botella, Marcos, Estopinan, {\v{S}}ulc et~al.}]{joly2024overview}
+\bibinfo{author}{A.~Joly}, \bibinfo{author}{H.~Go{\"e}au},
+  \bibinfo{author}{S.~Kahl}, \bibinfo{author}{L.~Picek},
+  \bibinfo{author}{R.~R.~D. Castaneda}, \bibinfo{author}{T.~Lorieul},
+  \bibinfo{author}{B.~Deneu}, \bibinfo{author}{C.~Botella},
+  \bibinfo{author}{D.~Marcos}, \bibinfo{author}{J.~Estopinan},
+  \bibinfo{author}{M.~{\v{S}}ulc}, et~al.,
+\newblock \bibinfo{title}{Overview of {LifeCLEF} 2024: Evaluation of species
+  distribution prediction and identification},
+\newblock in: \bibinfo{booktitle}{Experimental IR Meets Multilinguality,
+  Multimodality, and Interaction}, Lecture Notes in Computer Science,
+  \bibinfo{publisher}{Springer}, \bibinfo{year}{2024}.
+%Type = Misc
+\bibitem[{Go{\"e}au et~al.(2026)Go{\"e}au, Joly, Bonnet, Affouard, and
+  Deneu}]{plantclef2026}
+\bibinfo{author}{H.~Go{\"e}au}, \bibinfo{author}{A.~Joly},
+  \bibinfo{author}{P.~Bonnet}, \bibinfo{author}{A.~Affouard},
+  \bibinfo{author}{B.~Deneu}, \bibinfo{title}{{PlantCLEF} 2026: Multi-label
+  plant species identification in vegetation plots},
+  \bibinfo{howpublished}{Kaggle Competition}, \bibinfo{year}{2026}. \URLprefix
+  \url{https://www.kaggle.com/competitions/plantclef-2026}.
+%Type = Article
+\bibitem[{Stevens et~al.(2024)Stevens, Wu, Thompson, Campolongo, Song, Carlyn,
+  Dong, Dahdul, Stewart, Berger-Wolf, Chao, and Su}]{stevens2024bioclip}
+\bibinfo{author}{S.~Stevens}, \bibinfo{author}{J.~Wu}, \bibinfo{author}{M.~J.
+  Thompson}, \bibinfo{author}{E.~G. Campolongo}, \bibinfo{author}{C.~H. Song},
+  \bibinfo{author}{D.~E. Carlyn}, \bibinfo{author}{L.~Dong},
+  \bibinfo{author}{W.~M. Dahdul}, \bibinfo{author}{C.~Stewart},
+  \bibinfo{author}{T.~Berger-Wolf}, \bibinfo{author}{W.-L. Chao},
+  \bibinfo{author}{Y.~Su},
+\newblock \bibinfo{title}{{BioCLIP}: A vision foundation model for the tree of
+  life},
+\newblock \bibinfo{journal}{Proceedings of the IEEE/CVF Conference on Computer
+  Vision and Pattern Recognition (CVPR)}  (\bibinfo{year}{2024})
+  \bibinfo{pages}{19412--19422}.
+%Type = Inproceedings
+\bibitem[{Go{\"e}au et~al.(2013)Go{\"e}au, Bonnet, and Joly}]{goeau2013pl}
+\bibinfo{author}{H.~Go{\"e}au}, \bibinfo{author}{P.~Bonnet},
+  \bibinfo{author}{A.~Joly},
+\newblock \bibinfo{title}{The {ImageCLEF} 2013 plant identification task},
+\newblock in: \bibinfo{booktitle}{CLEF 2013 Working Notes},
+  \bibinfo{year}{2013}.
+%Type = Article
+\bibitem[{Lee et~al.(2017)Lee, Chan, Mayo, and Remagnino}]{lee2017deep}
+\bibinfo{author}{S.~H. Lee}, \bibinfo{author}{C.~S. Chan},
+  \bibinfo{author}{S.~J. Mayo}, \bibinfo{author}{P.~Remagnino},
+\newblock \bibinfo{title}{How deep learning extracts and learns leaf features
+  for plant classification},
+\newblock \bibinfo{journal}{Pattern Recognition} \bibinfo{volume}{71}
+  (\bibinfo{year}{2017}) \bibinfo{pages}{1--13}.
+%Type = Inproceedings
+\bibitem[{Dosovitskiy et~al.(2021)Dosovitskiy, Beyer, Kolesnikov, Weissenborn,
+  Zhai, Unterthiner, Dehghani, Minderer, Heigold, Gelly, Uszkoreit, and
+  Houlsby}]{dosovitskiy2021image}
+\bibinfo{author}{A.~Dosovitskiy}, \bibinfo{author}{L.~Beyer},
+  \bibinfo{author}{A.~Kolesnikov}, \bibinfo{author}{D.~Weissenborn},
+  \bibinfo{author}{X.~Zhai}, \bibinfo{author}{T.~Unterthiner},
+  \bibinfo{author}{M.~Dehghani}, \bibinfo{author}{M.~Minderer},
+  \bibinfo{author}{G.~Heigold}, \bibinfo{author}{S.~Gelly},
+  \bibinfo{author}{J.~Uszkoreit}, \bibinfo{author}{N.~Houlsby},
+\newblock \bibinfo{title}{An image is worth 16x16 words: Transformers for image
+  recognition at scale},
+\newblock in: \bibinfo{booktitle}{International Conference on Learning
+  Representations (ICLR)}, \bibinfo{year}{2021}.
+%Type = Inproceedings
+\bibitem[{Go{\"e}au et~al.(2024)Go{\"e}au, Bonnet, and
+  Joly}]{goeau2024plantclef}
+\bibinfo{author}{H.~Go{\"e}au}, \bibinfo{author}{P.~Bonnet},
+  \bibinfo{author}{A.~Joly},
+\newblock \bibinfo{title}{Overview of {PlantCLEF} 2024: Multi-label
+  identification in vegetation plots},
+\newblock in: \bibinfo{booktitle}{CLEF 2024 Working Notes}, CEUR Workshop
+  Proceedings, \bibinfo{year}{2024}.
+%Type = Article
+\bibitem[{Oquab et~al.(2024)Oquab, Darcet, Moutakanni, Vo, Szafraniec,
+  Khalidov, Fernandez, Haziza, Massa, El-Nouby, Assran, Ballas, Galuba, Howes,
+  Huang, Li, Misra, Rabbat, Sharma, Synnaeve, Xu, J{\'e}gou, Mairal, Labatut,
+  Joulin, and Bojanowski}]{oquab2024dinov2}
+\bibinfo{author}{M.~Oquab}, \bibinfo{author}{T.~Darcet},
+  \bibinfo{author}{T.~Moutakanni}, \bibinfo{author}{H.~Vo},
+  \bibinfo{author}{M.~Szafraniec}, \bibinfo{author}{V.~Khalidov},
+  \bibinfo{author}{P.~Fernandez}, \bibinfo{author}{D.~Haziza},
+  \bibinfo{author}{F.~Massa}, \bibinfo{author}{A.~El-Nouby},
+  \bibinfo{author}{M.~Assran}, \bibinfo{author}{N.~Ballas},
+  \bibinfo{author}{W.~Galuba}, \bibinfo{author}{R.~Howes},
+  \bibinfo{author}{P.-Y. Huang}, \bibinfo{author}{S.-W. Li},
+  \bibinfo{author}{I.~Misra}, \bibinfo{author}{M.~Rabbat},
+  \bibinfo{author}{V.~Sharma}, \bibinfo{author}{G.~Synnaeve},
+  \bibinfo{author}{H.~Xu}, \bibinfo{author}{H.~J{\'e}gou},
+  \bibinfo{author}{J.~Mairal}, \bibinfo{author}{P.~Labatut},
+  \bibinfo{author}{A.~Joulin}, \bibinfo{author}{P.~Bojanowski},
+\newblock \bibinfo{title}{{DINOv2}: Learning robust visual features without
+  supervision},
+\newblock \bibinfo{journal}{Transactions on Machine Learning Research}
+  (\bibinfo{year}{2024}).
+%Type = Inproceedings
+\bibitem[{Woo et~al.(2023)Woo, Debnath, Hu, Chen, Liu, Kweon, and
+  Xie}]{woo2023convnextv2}
+\bibinfo{author}{S.~Woo}, \bibinfo{author}{S.~Debnath},
+  \bibinfo{author}{R.~Hu}, \bibinfo{author}{X.~Chen}, \bibinfo{author}{Z.~Liu},
+  \bibinfo{author}{I.~S. Kweon}, \bibinfo{author}{S.~Xie},
+\newblock \bibinfo{title}{{ConvNeXt V2}: Co-designing and scaling convnets with
+  masked autoencoders},
+\newblock in: \bibinfo{booktitle}{Proceedings of the IEEE/CVF Conference on
+  Computer Vision and Pattern Recognition (CVPR)}, \bibinfo{year}{2023}, pp.
+  \bibinfo{pages}{16133--16142}.
+%Type = Inproceedings
+\bibitem[{Ben-Baruch et~al.(2021)Ben-Baruch, Ridnik, Zamir, Noy, Friedman,
+  Protter, and Zelnik-Manor}]{ridnik2021asymmetric}
+\bibinfo{author}{E.~Ben-Baruch}, \bibinfo{author}{T.~Ridnik},
+  \bibinfo{author}{N.~Zamir}, \bibinfo{author}{A.~Noy},
+  \bibinfo{author}{I.~Friedman}, \bibinfo{author}{M.~Protter},
+  \bibinfo{author}{L.~Zelnik-Manor},
+\newblock \bibinfo{title}{Asymmetric loss for multi-label classification},
+\newblock in: \bibinfo{booktitle}{Proceedings of the IEEE/CVF International
+  Conference on Computer Vision (ICCV)}, \bibinfo{year}{2021}, pp.
+  \bibinfo{pages}{82--91}.
+%Type = Inproceedings
+\bibitem[{Lin et~al.(2017)Lin, Goyal, Girshick, He, and
+  Doll{\'a}r}]{lin2017focal}
+\bibinfo{author}{T.-Y. Lin}, \bibinfo{author}{P.~Goyal},
+  \bibinfo{author}{R.~Girshick}, \bibinfo{author}{K.~He},
+  \bibinfo{author}{P.~Doll{\'a}r},
+\newblock \bibinfo{title}{Focal loss for dense object detection},
+\newblock in: \bibinfo{booktitle}{Proceedings of the IEEE International
+  Conference on Computer Vision (ICCV)}, \bibinfo{year}{2017}, pp.
+  \bibinfo{pages}{2980--2988}.
+%Type = Inproceedings
+\bibitem[{Menon et~al.(2021)Menon, Jayasumana, Rawat, Jain, Veit, and
+  Kumar}]{menon2021longtail}
+\bibinfo{author}{A.~K. Menon}, \bibinfo{author}{S.~Jayasumana},
+  \bibinfo{author}{A.~S. Rawat}, \bibinfo{author}{H.~Jain},
+  \bibinfo{author}{A.~Veit}, \bibinfo{author}{S.~Kumar},
+\newblock \bibinfo{title}{Long-tail learning via logit adjustment},
+\newblock in: \bibinfo{booktitle}{International Conference on Learning
+  Representations (ICLR)}, \bibinfo{year}{2021}.
+
+\end{thebibliography}
