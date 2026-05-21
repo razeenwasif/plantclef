@@ -1,10 +1,12 @@
 # Oracle Project Progress
 
 ## Recent Updates
-- **2026-05-21:** Optimized Git repository by untracking large files and artifacts.
+- **2026-05-21:** Optimized Git repository by untracking large files and purging Git history.
   - Created a comprehensive root `.gitignore` file.
-  - Untracked over 200MB of unnecessary files including `node_modules`, `target` directories, large PDFs, and Jupyter notebooks.
-  - Cleaned up binary executables and build artifacts from source control.
+  - Purged over 8GB of historical data from Git history using `git filter-repo`.
+  - Removed massive blobs including `data/plantclef-2026.zip` (7.5GB) and `data/archive.zip` (1GB).
+  - Cleaned up `node_modules`, `target`, `manim-env`, and other build/binary artifacts.
+  - Successfully reduced `.git` size from >2GB to 69MB and force-pushed to GitHub.
 - **2026-05-15:** Integrated Research Aspect into the Dashboard.
   - Created `ResearchPaper` component to display paper contents (Abstract, Methodology, Innovations, etc.) in a beautiful format.
   - Added "Research" tab to the main dashboard navigation.
