@@ -1,10 +1,10 @@
 """
-ORACLE Accelerator Abstraction
+PLANTCLEF Accelerator Abstraction
 ==============================
 
 Single interface over CUDA / TPU (and a CPU dev fallback) so the trainer
 and training loops don't care which silicon they're running on. Switch
-via `oracle.py train --mode {cuda,tpu,auto}` or the ``ORACLE_MODE``
+via `plantclef.py train --mode {cuda,tpu,auto}` or the ``CLUSTER_MODE``
 environment variable.
 
 Design constraints
@@ -20,7 +20,7 @@ Design constraints
 Usage sketch
 ------------
     from src.training.accelerator import make_accelerator
-    accel = make_accelerator(os.environ.get("ORACLE_MODE", "auto"))
+    accel = make_accelerator(os.environ.get("CLUSTER_MODE", "auto"))
     accel.init_distributed()
     device = accel.device          # cuda:0 / xla:0 / cpu
     model = model.to(device)
@@ -36,7 +36,7 @@ What this module deliberately does NOT do
   native PyTorch DataLoader (or WebDataset) replacement. See docs/TPU.md
   for the open work item.
 * It does not abstract ``torchrun`` vs ``xmp.spawn``. Launching the
-  correct multiprocess scaffold is the job of launch_oracle.sh; once
+  correct multiprocess scaffold is the job of launch.sh; once
   inside a worker, this module handles the rest.
 """
 
@@ -270,7 +270,7 @@ class TpuAccelerator(Accelerator):
 
     def synchronize(self) -> None:
         # rendezvous all replicas
-        self._xm.rendezvous("oracle.sync")
+        self._xm.rendezvous("plantclef.sync")
 
     def mark_step(self) -> None:
         self._xm.mark_step()
@@ -300,7 +300,7 @@ def make_accelerator(mode: str | None = None) -> Accelerator:
     ----
     mode
         ``"cuda"``, ``"tpu"``, ``"cpu"``, ``"auto"``, or ``None`` (treated
-        as ``"auto"``). Reads ``ORACLE_MODE`` env var as a fallback if
+        as ``"auto"``). Reads ``CLUSTER_MODE`` env var as a fallback if
         ``mode`` is None.
 
     Returns
@@ -308,7 +308,7 @@ def make_accelerator(mode: str | None = None) -> Accelerator:
     Accelerator
         Configured instance ready to call ``.init_distributed()`` on.
     """
-    requested = (mode or os.environ.get("ORACLE_MODE") or "auto").lower()
+    requested = (mode or os.environ.get("CLUSTER_MODE") or "auto").lower()
     if requested == "auto":
         requested = _detect_auto()
     if requested == "cuda":
@@ -317,7 +317,7 @@ def make_accelerator(mode: str | None = None) -> Accelerator:
         return TpuAccelerator()
     if requested == "cpu":
         return CpuAccelerator()
-    raise ValueError(f"Unknown ORACLE_MODE: {requested!r}. Expected cuda | tpu | cpu | auto.")
+    raise ValueError(f"Unknown CLUSTER_MODE: {requested!r}. Expected cuda | tpu | cpu | auto.")
 
 
 # Convenience: a process-wide singleton, lazily initialised on first read.

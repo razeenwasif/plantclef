@@ -17,11 +17,11 @@ def run_epoch(model, loader, val_loader, criterion, trait_criterion, epoch, num_
     is_ds = hasattr(model, 'backward')
     rank = int(os.environ.get("RANK", 0))
     
-    # ORACLE: Local-only counters
+    # plantclef: Local-only counters
     local_correct = 0
     local_total = 0
 
-    # ORACLE: Rank-aware progress bars for 4-GPU clusters
+    # plantclef: Rank-aware progress bars for 4-GPU clusters
     pbar = tqdm(loader, desc=f"[Rank {rank}] Epoch {epoch}", position=rank, leave=True, disable=False)
     
     for i, data in enumerate(pbar):
@@ -70,7 +70,7 @@ def run_epoch(model, loader, val_loader, criterion, trait_criterion, epoch, num_
             model.optimizer.zero_grad()
             accel.mark_step()  # no-op on CUDA; flushes XLA graph on TPU
 
-        # 6. UI Update (ORACLE: Per-step updates during compilation phase)
+        # 6. UI Update (PLANTCLEF: Per-step updates during compilation phase)
         with torch.no_grad():
             preds = species_logits.max(1)[1]
             local_correct += (preds == labels).sum().item()
@@ -94,11 +94,11 @@ def run_epoch(model, loader, val_loader, criterion, trait_criterion, epoch, num_
                 local_acc=float((local_correct / local_total) * 100.0) if local_total > 0 else 0.0,
             )
             
-        # ORACLE: Periodic HBM Defragmentation
+        # plantclef: Periodic HBM Defragmentation
         if (i+1) % 500 == 0:
             accel.empty_cache()
 
-    # ORACLE: End-of-Epoch Deep Purge
+    # plantclef: End-of-Epoch Deep Purge
     final_acc = (local_correct / local_total) * 100.0 if local_total > 0 else 0.0
     telemetry.emit("epoch.end", epoch=str(epoch), local_acc=float(final_acc), steps=i + 1)
     del outputs, species_logits, loss
@@ -190,7 +190,7 @@ def validate(model, loader, criterion, num_classes, device):
             local_total += labels.size(0)
             num_batches += 1
             
-    # ORACLE: Cluster-Wide Aggregation
+    # plantclef: Cluster-Wide Aggregation
     if world_size > 1:
         dist.all_reduce(local_correct, op=dist.ReduceOp.SUM)
         dist.all_reduce(local_total, op=dist.ReduceOp.SUM)
@@ -205,7 +205,7 @@ def validate(model, loader, criterion, num_classes, device):
         print(f"\n--- Validation Results: Acc: {avg_acc:.2f}% | Loss: {avg_loss:.4f} ---")
     telemetry.emit("validation.end", acc=float(avg_acc), loss=float(avg_loss), batches=num_batches)
 
-    # ORACLE: Deep Purge
+    # plantclef: Deep Purge
     import gc
     gc.collect()
     accelerator().empty_cache()

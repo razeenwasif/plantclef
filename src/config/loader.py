@@ -5,7 +5,7 @@ import torch
 from pathlib import Path
 from typing import Optional, Dict, Any
 from .schema import (
-    OracleConfig, HardwareConfig, DatasetConfig, ModelConfig,
+    PlantCLEFConfig, HardwareConfig, DatasetConfig, ModelConfig,
     TrainingConfig, MemoryConfig, TilingConfig, FilterConfig, AggregationConfig, PostprocessConfig
 )
 
@@ -22,15 +22,15 @@ def _load_yaml(path: str) -> Dict[str, Any]:
     with open(path, 'r') as f:
         return yaml.safe_load(f) or {}
 
-def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
+def load_config(yaml_path: Optional[str] = None) -> PlantCLEFConfig:
     """
     Unified entry point for configuration.
-    Loads YAML, probes hardware, and returns a typed OracleConfig object.
+    Loads YAML, probes hardware, and returns a typed PlantCLEFConfig object.
     """
     # 1. Start with Default Schema
-    config = OracleConfig()
+    config = PlantCLEFConfig()
     
-    # ORACLE: Enforce Blackwell Tensor Core utilization for FP32 operations
+    # plantclef: Enforce Blackwell Tensor Core utilization for FP32 operations
     torch.set_float32_matmul_precision('high')
     
     # 2. Load User YAML (if provided)
@@ -122,7 +122,7 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
         config.hardware.extreme_mode = (config.hardware.world_size >= 2)
         config.memory.prefetch_depth = 8
         
-        # ORACLE: Global Blackwell optimizations
+        # plantclef: Global Blackwell optimizations
         os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:128"
         os.environ["TORCH_CUDNN_V8_API_ENABLED"] = "1"
         os.environ["TORCH_CUDA_MATMUL_TF32"] = "1"
@@ -146,7 +146,7 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
         config.hardware.use_fp8 = False
         config.hardware.use_compile = True
 
-    # ORACLE: Apply YAML Presets if they match the detected hardware
+    # plantclef: Apply YAML Presets if they match the detected hardware
     # This allows users to provide architecture-specific overrides in the YAML file.
     _preset_set_accum = False
     if 'presets' in user_cfg and config.hardware.preset in user_cfg['presets']:
@@ -169,7 +169,7 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
             if 'chunk_size' in pmem: config.memory.chunk_size = pmem['chunk_size']
             if 'p2_chunk_size' in pmem: config.memory.p2_chunk_size = pmem['p2_chunk_size']
 
-    # ORACLE: Global Batch Scaling Logic
+    # plantclef: Global Batch Scaling Logic
     # We target a stable global batch size for consistent LoRA convergence.
     target_global_batch = 15360 if config.hardware.preset == "blackwell" else 5120
     
@@ -179,7 +179,7 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
         config.training.accumulation_steps = max(1, round(target_global_batch / (config.training.p2_batch_size * config.hardware.world_size)))
 
     if config.hardware.extreme_mode and config.hardware.local_rank == 0:
-        print(f"[ORACLE] Scaling for {config.hardware.world_size} GPUs: "
+        print(f"[plantclef] Scaling for {config.hardware.world_size} GPUs: "
               f"Batch/GPU={config.training.p2_batch_size}, "
               f"Accum={config.training.accumulation_steps} "
               f"(Global ~{config.training.p2_batch_size * config.hardware.world_size * config.training.accumulation_steps})")
@@ -187,9 +187,9 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
     # 5. Path Management (Cluster-Aware)
     hardware_target = os.environ.get("PLANTCLEF_HARDWARE", "CUDA").lower()
     if config.hardware.extreme_mode:
-        pod_id = os.environ.get("ORACLE_NAME", "cluster_final")
+        pod_id = os.environ.get("PLANTCLEF_NAME", "cluster_final")
     else:
-        pod_id = os.environ.get("ORACLE_NAME", "pod_b" if rank_offset > 0 else "pod_a")
+        pod_id = os.environ.get("PLANTCLEF_NAME", "pod_b" if rank_offset > 0 else "pod_a")
 
     config.base_model_dir = f"models/{hardware_target}_deep_sat/{pod_id}"
     
@@ -202,7 +202,7 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
                     setattr(section_obj, k, v)
     
     # Dynamic Checkpoint Strings
-    # We add these as properties to the OracleConfig object for convenience
+    # We add these as properties to the PlantCLEFConfig object for convenience
     setattr(config, "SWA_CKPT_PATH", f"{config.base_model_dir}/swa_model_final.pth")
     setattr(config, "P1_CKPT_PATH", f"{config.base_model_dir}/phase1_checkpoint.pth")
     setattr(config, "P2_CKPT_DIR", f"{config.base_model_dir}/phase2_checkpoint")
@@ -212,6 +212,6 @@ def load_config(yaml_path: Optional[str] = None) -> OracleConfig:
     # Global Diagnostic Log (Rank 0 only)
     if config.hardware.local_rank == 0:
         mode_str = f"{config.hardware.world_size}x {config.hardware.probed_gpu} Cluster" if config.hardware.extreme_mode else config.hardware.preset
-        print(f"[OracleConfig] Mode: {mode_str} | LoRA R={config.model.lora_r} | Batch={config.training.p2_batch_size}")
+        print(f"[PlantCLEFConfig] Mode: {mode_str} | LoRA R={config.model.lora_r} | Batch={config.training.p2_batch_size}")
 
     return config

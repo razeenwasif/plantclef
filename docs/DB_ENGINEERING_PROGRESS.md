@@ -1,17 +1,17 @@
-# Oracle Project Progress
+# plantclef project Progress
 
-This file tracks the evolution of the Oracle system from a plant-specific identifier to a Universal Neuro-Symbolic Knowledge Engine.
+This file tracks the evolution of the plantclef system from a plant-specific identifier to a Universal Neuro-Symbolic Knowledge Engine.
 
 ## 🏁 Milestones Completed
 
 ### 1. Global Rebranding (May 7, 2026)
-- [x] Renamed all "Nitro" instances to "Oracle" across the entire codebase.
+- [x] Renamed all "Nitro" instances to "plantclef" across the entire codebase.
 - [x] Renamed all directories and files.
 - [x] Updated all internal strings and documentation.
 - [x] Verified system integrity with a full test suite pass (28/28 tests).
 
-### 2. Universal Oracle Infrastructure
-- [x] Drafted the `docs/UNIVERSAL_ORACLE_ROADMAP.md`.
+### 2. Universal plantclef infrastructure
+- [x] Drafted the `docs/UNIVERSAL_NITRO_ROADMAP.md`.
 - [x] Initialized PostgreSQL database (`oracle-db`) with `ltree` and `pgvector` extensions.
 - [x] Created the `taxonomy_nodes` table schema for dynamic ontology management.
 

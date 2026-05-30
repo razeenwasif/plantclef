@@ -75,7 +75,7 @@ class SpinGlassSolver:
         torch.Tensor
             (C,) binary vector representing the lowest energy configuration.
         """
-        # ORACLE: Slice logits to exactly self.num_classes to match J
+        # plantclef: Slice logits to exactly self.num_classes to match J
         if logits.shape[0] > self.num_classes:
             h = logits[:self.num_classes].clone()
         else:

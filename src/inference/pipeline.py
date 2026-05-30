@@ -56,7 +56,7 @@ class InferencePipeline:
         """Load all model runners specified in the configuration."""
         runners = []
         
-        # ORACLE: Mixed-Resolution Support
+        # plantclef: Mixed-Resolution Support
         ckpt_paths = self.cfg.paths.checkpoint_paths
         resolutions = self.cfg.model.per_model_resolutions
         
@@ -72,7 +72,7 @@ class InferencePipeline:
             resolutions = [self.cfg.model.input_size] * len(ckpt_paths)
 
         for ckpt_path, res in zip(ckpt_paths, resolutions):
-            logger.info(f"[ORACLE] Loading {ckpt_path.name} at resolution {res}px")
+            logger.info(f"[plantclef] Loading {ckpt_path.name} at resolution {res}px")
             # Create a shallow copy of model config to override input_size per runner
             model_cfg = self.cfg.model
             # We pass res directly to load_model_adapter via an internal override 
@@ -115,7 +115,7 @@ class InferencePipeline:
             
         logger.debug("Image %r → %d candidates.", image_id, len(tiles))
 
-        # ORACLE: SAM + GroundingDINO Noise Mask Penalty
+        # plantclef: SAM + GroundingDINO Noise Mask Penalty
         _mask_dir = getattr(self.cfg.paths, 'noise_mask_dir', None) or (Path(self.cfg.paths.output_dir) / "noise_masks")
         mask_path = Path(_mask_dir) / f"{image_path.stem}_mask.png"
         mask_array = None
@@ -191,7 +191,7 @@ class InferencePipeline:
             ensemble_tile_preds.append(preds[0]) # Start with first spec
             ensemble_tile_preds[-1].logits = avg_logits
             
-            # ORACLE: Apply SAM Noise Penalty (p' = p(1 - 0.35m))
+            # plantclef: Apply SAM Noise Penalty (p' = p(1 - 0.35m))
             noise_penalty = 1.0 - (0.35 * preds[0].tile_spec.noise_fraction)
             ensemble_tile_preds[-1].probs = avg_probs * noise_penalty
 
@@ -289,9 +289,9 @@ class InferencePipeline:
         total_tiles_processed = 0
         peak_vram_gb = 0.0
 
-        # --- Warmup (ORACLE: Prevents ThreadPool Deadlocks in torch.compile) ---
+        # --- Warmup (PLANTCLEF: Prevents ThreadPool Deadlocks in torch.compile) ---
         if self.cfg.model.use_compile and runners:
-            logger.info("[ORACLE] Performing sequential model warmup to capture CUDA Graphs...")
+            logger.info("[plantclef] Performing sequential model warmup to capture CUDA Graphs...")
             dummy_input = torch.randn(1, 3, self.cfg.model.input_size, self.cfg.model.input_size).cuda()
             if self.cfg.model.amp_enabled:
                 dtype = torch.bfloat16 if getattr(self, 'extreme', False) else torch.float16
@@ -308,7 +308,7 @@ class InferencePipeline:
                         except Exception as e:
                             logger.warning(f"Warmup failed for runner {i}: {e}. Compilation will happen on-the-fly.")
             torch.cuda.synchronize()
-            logger.info("[ORACLE] Warmup complete. Starting parallel inference.")
+            logger.info("[plantclef] Warmup complete. Starting parallel inference.")
 
         # --- Resume Check ---
         output_path = self.cfg.paths.output_dir / self.cfg.submission_filename
@@ -317,17 +317,17 @@ class InferencePipeline:
         # --- Pre-fetch Setup ---
         image_list = [item for item in iter_images(test_items) if item[0] not in processed_ids]
         
-        # ORACLE: Distributed Workload Sharding
+        # plantclef: Distributed Workload Sharding
         import torch.distributed as dist
         if dist.is_initialized():
             rank = dist.get_rank()
             world_size = dist.get_world_size()
             image_list = image_list[rank::world_size]
-            logger.info(f"[ORACLE] Distributed Rank {rank}/{world_size}: Processing {len(image_list)} images.")
+            logger.info(f"[plantclef] Distributed Rank {rank}/{world_size}: Processing {len(image_list)} images.")
 
         pbar = tqdm(image_list, desc="Inference", unit="img", dynamic_ncols=True)
         
-        # ORACLE: Dashboard Heartbeat
+        # plantclef: Dashboard Heartbeat
         from tools.infrastructure.pulsar import PulsarHeartbeat
         pulsar = PulsarHeartbeat()
 
@@ -356,7 +356,7 @@ class InferencePipeline:
                 "tiles": f"{total_tiles_processed // 1000}k"
             })
 
-        # ORACLE: Thread-Safety Guard for torch.compile
+        # plantclef: Thread-Safety Guard for torch.compile
         # ThreadPoolExecutor crashes with torch.compile + CUDA Graphs due to TLS issues.
         # We replace the standard serial/threaded loop with an Asynchronous GPU-producer CPU-consumer
         import threading
@@ -393,7 +393,7 @@ class InferencePipeline:
                         final_predictions.append(pred)
                         pbar.update(1)
                         update_metrics(len(final_predictions))
-                        # ORACLE: Heartbeat pulse every 10 images
+                        # plantclef: Heartbeat pulse every 10 images
                         if len(final_predictions) % 10 == 0:
                             elapsed = time.perf_counter() - start_time
                             fps = len(final_predictions) / max(0.1, elapsed)
@@ -401,7 +401,7 @@ class InferencePipeline:
                 except Exception as e:
                     logger.error("CPU worker error: %s", e)
 
-        logger.info("[ORACLE] Using Asynchronous GPU/CPU Pipelining (Frank-Wolfe + AC-3 Hidden Latency).")
+        logger.info("[plantclef] Using Asynchronous GPU/CPU Pipelining (Frank-Wolfe + AC-3 Hidden Latency).")
         gpu_thread = threading.Thread(target=gpu_worker)
         cpu_thread = threading.Thread(target=cpu_worker)
         
@@ -425,7 +425,7 @@ class InferencePipeline:
         logger.info(f"Peak VRAM:        {peak_vram_gb:.2f} GB")
         logger.info("-" * 40)
 
-        # ORACLE: Cross-Year Temporal Propagation & Distributed Gathering
+        # plantclef: Cross-Year Temporal Propagation & Distributed Gathering
         import torch.distributed as dist
         if dist.is_initialized():
             logger.info("[Temporal] Gathering predictions from all ranks...")
@@ -494,7 +494,7 @@ class DistributedInferenceOrchestrator:
             
         pipeline = InferencePipeline(self.cfg)
         
-        # ORACLE: SOTA Few-Shot Retrieval Fallback (Distributed-Aware)
+        # plantclef: SOTA Few-Shot Retrieval Fallback (Distributed-Aware)
         if self.cfg.postprocess.use_few_shot_retrieval:
             from .retrieval import RetrievalEngine
             from models.bioclip import PlantBioCLIP

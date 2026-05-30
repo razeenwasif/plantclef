@@ -87,7 +87,7 @@ class TileFilter:
                 self._skipped += 1
                 return False
             
-            # ORACLE: Calculate soft weight based on teammate's report (alpha=0.5, beta=1.0)
+            # plantclef: Calculate soft weight based on teammate's report (alpha=0.5, beta=1.0)
             # but using pure ExG instead of SAM
             spec.veg_weight = min(max(0.5 + 1.0 * veg_fraction, 0.1), 2.0)
 

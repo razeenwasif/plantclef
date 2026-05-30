@@ -24,9 +24,9 @@ This document tracks our implementation of R. Ryan Williams' "Simulating Time Wi
 - [ ] **Task 3.1:** Write a CUDA kernel that parallelizes the recomputation of disjoint tree branches during the backward pass.
 - [ ] **Task 3.2:** Implement dynamic shared memory allocation to ensure boundary states fit within the SM's L1 cache, avoiding global memory (HBM) latency.
 
-### Phase 4: Integration with Oracle
+### Phase 4: Integration with plantclef
 **Goal:** Hook the engine into our Probabilistic Logic Programming pipeline to enable incredibly deep ecological constraint reasoning.
-- [ ] **Task 4.1:** Integrate the Square-Root Space evaluator into the Oracle AC-3/Loopy BP loss functions.
+- [ ] **Task 4.1:** Integrate the Square-Root Space evaluator into the plantclef AC-3/Loopy BP loss functions.
 - [ ] **Task 4.2:** Benchmark the maximum reasoning depth achievable on the 24GB RTX 4090 before and after implementation.
 
 ---

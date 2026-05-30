@@ -1,6 +1,6 @@
-# Oracle: Novelty Backlog & Research Frontiers
+# plantclef: Novelty Backlog & Research Frontiers
 
-This document tracks the advanced botanical and mathematical concepts integrated into the Oracle system, distinguishing between **Saturated** (fully implemented) and **Unsaturated** (exploratory/theoretical) ideas.
+This document tracks the advanced botanical and mathematical concepts integrated into the plantclef system, distinguishing between **Saturated** (fully implemented) and **Unsaturated** (exploratory/theoretical) ideas.
 
 ## 🟢 Saturated (Final Submission Core)
 - **Thermodynamic Phenology:** Seasonal prior based on circular Gaussian smoothing of GBIF data and Boltzmann distribution.

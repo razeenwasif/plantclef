@@ -1,6 +1,6 @@
-# PlantCLEF 2026 - ORACLE Training & Inference Pipeline
+# PlantCLEF 2026 - PLANTCLEF Training & Inference Pipeline
 
-This document describes the state-of-the-art "ORACLE" pipeline designed for the PlantCLEF 2026 competition, optimized for high-resolution quadrat identification on Blackwell (RTX 5090) hardware.
+This document describes the state-of-the-art "PLANTCLEF" pipeline designed for the PlantCLEF 2026 competition, optimized for high-resolution quadrat identification on Blackwell (RTX 5090) hardware.
 
 ---
 
@@ -17,7 +17,7 @@ This document describes the state-of-the-art "ORACLE" pipeline designed for the 
 *   **Speed:** ~400 images/second across the 8-GPU cluster.
 *   **Logic:** Backbones are frozen; only final pooling layers are active.
 *   **Output:** `/workspace/models/phase1_feature_cache.pt`.
-*   **Launch:** `./oracle.py train --phase p1 --role sprint`
+*   **Launch:** `./plantclef.py train --phase p1 --role sprint`
 
 ---
 
@@ -26,7 +26,7 @@ This document describes the state-of-the-art "ORACLE" pipeline designed for the 
 *   **Duration:** ~2 seconds per epoch.
 *   **Optimization:** Fused Lion optimizer + RAM-disk caching.
 *   **Accuracy:** Targets >95% training accuracy before unfreezing backbones.
-*   **Launch:** `./oracle.py train --phase p2a --role sprint`
+*   **Launch:** `./plantclef.py train --phase p2a --role sprint`
 
 ---
 
@@ -34,8 +34,8 @@ This document describes the state-of-the-art "ORACLE" pipeline designed for the 
 *   **Goal:** Heavy LoRA fine-tuning of specialized backbones (BioCLIP or DINOv3).
 *   **Launch:** 
 ```bash
-./oracle.py train --phase p2b-expert --role sprint --config configs/p2b_teacher_bioclip.yaml
-./oracle.py train --phase p2b-expert --role sprint --config configs/p2b_teacher_dinov3.yaml
+./plantclef.py train --phase p2b-expert --role sprint --config configs/p2b_teacher_bioclip.yaml
+./plantclef.py train --phase p2b-expert --role sprint --config configs/p2b_teacher_dinov3.yaml
 ```
 
 ---
@@ -45,7 +45,7 @@ This document describes the state-of-the-art "ORACLE" pipeline designed for the 
 *   **Strategy:** **High-Res Teacher / Low-Res Student Distillation.**
     *   **Teachers:** Two frozen SWA-averaged experts (`expert_bioclip_512`, `expert_dinov3_512`) at 512px.
     *   **Student:** Curriculum from 224px → 448px → 512px, inherits fine-grained features via KL divergence.
-*   **Launch:** `./oracle.py train --phase p2b-student --role sprint`
+*   **Launch:** `./plantclef.py train --phase p2b-student --role sprint`
 
 ---
 
@@ -60,7 +60,7 @@ To eliminate the JPEG decoding and network I/O bottlenecks, the following stack 
 
 ---
 
-## 🚀 Oracle Launch Sequence (Industrial)
+## 🚀 plantclef Launch Sequence (Industrial)
 
 ### Complete Pipeline
 
@@ -81,25 +81,25 @@ To eliminate the JPEG decoding and network I/O bottlenecks, the following stack 
 ### 1. Foundation Caching (Phase 1)
 Build the foundation feature cache (`phase1_feature_cache.pt`):
 ```bash
-./oracle.py train --phase p1 --role sprint
+./plantclef.py train --phase p1 --role sprint
 ```
 
 ### 1b. Expert Specialization (Phase 2b-expert)
 Trains the frozen teacher models (`expert_bioclip_512`, `expert_dinov3_512`):
 ```bash
-./oracle.py train --phase p2b-expert --role sprint --config configs/p2b_teacher_bioclip.yaml
+./plantclef.py train --phase p2b-expert --role sprint --config configs/p2b_teacher_bioclip.yaml
 ```
 
 ### 2. Head Warmup (Phase 2a)
 Trains MLP + GCN head on the feature cache:
 ```bash
-./oracle.py train --phase p2a --role sprint
+./plantclef.py train --phase p2a --role sprint
 ```
 
 ### 3. Student Distillation (Phase 2b-student)
 Multi-seed student training with Knowledge Distillation:
 ```bash
-./oracle.py train --phase p2b-student --role sprint
+./plantclef.py train --phase p2b-student --role sprint
 ```
 
 ### 3.5 Asymmetric Dual-Teacher Distillation (Phase 2.5 - "The Trinity")
@@ -107,10 +107,10 @@ Trains a high-efficiency DeiT student using taxonomic (BioCLIP) and structural (
 
 ```bash
 # 1. Pre-compute teacher logits (BioCLIP + DINO)
-./oracle.py train --phase ad-td --role sprint -- --mode extract --variant elite
+./plantclef.py train --phase ad-td --role sprint -- --mode extract --variant elite
 
 # 2. Train the dual-token student
-./oracle.py train --phase ad-td --role sprint -- --mode train --variant elite
+./plantclef.py train --phase ad-td --role sprint -- --mode train --variant elite
 ```
 
 ### 4. High-Resolution Inference (SAHI)
@@ -144,7 +144,7 @@ The winning recipe used for the final PlantCLEF 2026 submission:
 
 ### Launching the Final Submission
 ```bash
-./oracle.py infer --ensemble --role sprint --config configs/inference.yaml
+./plantclef.py infer --ensemble --role sprint --config configs/inference.yaml
 ```
 
 ### 5. Automated Hyperparameter Tuning (Optuna)
@@ -152,7 +152,7 @@ Once you have generated raw logits during inference, you can optimize the ecolog
 
 ```bash
 # 1. Run inference to generate and cache raw logits
-./oracle.py infer --role sprint --config configs/inference.yaml
+./plantclef.py infer --role sprint --config configs/inference.yaml
 
 # 2. Run Optuna to find the optimal F1 score parameters
 python tools/modeling/optimize_optuna.py
@@ -171,7 +171,7 @@ This generates a combinatoric grid of configurations, runs inference for each, a
 
 ## 🔮 Future Work: Post-Competition Research
 
-While the core Oracle system is saturated, the following experimental architectures are in active development for the next iteration:
+While the core plantclef system is saturated, the following experimental architectures are in active development for the next iteration:
 
 ### 1. The "Holy Trinity": Asymmetric Dual-Teacher Distillation (AD-TD)
 To achieve elite performance without the massive latency of running three models at once, we use an Asymmetric Distillation (AD-TD) framework.

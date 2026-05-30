@@ -47,14 +47,14 @@ def load_test_items(paths: PathConfig) -> list[tuple[str, Path]]:
     ValueError
         If no images could be found.
     """
-    # ORACLE: RAM-Disk Satiation for Inference
+    # plantclef: RAM-Disk Satiation for Inference
     # We prefer the high-speed /dev/shm path if the images are cached there
     image_dir = paths.image_dir
     ram_disk_path = Path("/dev/shm/images")
     if ram_disk_path.exists():
         try:
             if any(ram_disk_path.iterdir()):
-                print(f"[ORACLE] Inference: Using RAM-Disk for zero-latency I/O.")
+                print(f"[plantclef] Inference: Using RAM-Disk for zero-latency I/O.")
                 image_dir = ram_disk_path
         except (PermissionError, StopIteration):
             pass

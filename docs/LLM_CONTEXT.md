@@ -1,9 +1,9 @@
-# Oracle (formerly Nitro): Project Context & Memory
+# plantclef (formerly Nitro): Project Context & Memory
 
-This file serves as the definitive state-of-the-world and context preservation document for the Oracle project. When a new LLM session begins, reading this document provides immediate understanding of the system's architecture, hardware environment, and strategic roadmap.
+This file serves as the definitive state-of-the-world and context preservation document for the plantclef project. When a new LLM session begins, reading this document provides immediate understanding of the system's architecture, hardware environment, and strategic roadmap.
 
 ## 1. Project Identity & Goal
-*   **Name:** Oracle (Transitioned from "Nitro" on May 7, 2026).
+*   **Name:** plantclef (Transitioned from "Nitro" on May 7, 2026).
 *   **Original Scope:** A state-of-the-art, high-resolution botanical identification pipeline for the PlantCLEF 2026 challenge (7,806 species, extreme long-tail).
 *   **Current Vision:** Transforming into a **Universal Neuro-Symbolic Knowledge Engine** capable of multimodal perception, formal logical reasoning, and dynamic ontology management across any domain (plants, automotive, pathology).
 
@@ -24,7 +24,7 @@ The system employs a polyglot architecture (Python, Rust, CUDA, C++, Haskell).
 *   **Agentic Auto-Discovery:** A Python OS-scanner combined with **Gemma 4** dynamically locates datasets (like PlantNet-300K) across the filesystem and automatically registers them in `configs/datasets.yaml` with stratified splitting.
 
 ### Compute Plane (Perception)
-Training is split into discrete phases managed by the `oracle.py` CLI and `src/setup/launch_oracle.sh`:
+Training is split into discrete phases managed by the `plantclef.py` CLI and `src/setup/launch.sh`:
 1.  **Foundation Caching (`phases/foundation_caching`):** Freeze backbones, cache 1.4M image features to NVMe.
 2.  **Head Warmup (`phases/head_warmup`):** Rapidly train MLP/GCN heads on cached features.
 3.  **Expert Specialization (`phases/expert_specialization`):** Heavy LoRA fine-tuning of individual backbones.
@@ -49,7 +49,7 @@ These components are implemented but isolated from the main "competition" baseli
 *   **Spectral Vision (GFNet):** Exploring $O(N \log N)$ Complex-Valued Fourier Filtering (2D FFT) to replace $O(N^2)$ spatial self-attention, allowing the model to mathematically isolate high-frequency plant features from low-frequency soil noise.
 
 ## 5. The "Grand Vision" Roadmap
-We are currently executing a major transition from static JSON/NPY files to a dynamic relational database backend. See `docs/UNIVERSAL_NITRO_ROADMAP.md` (renamed to `UNIVERSAL_ORACLE_ROADMAP.md` contextually).
+We are currently executing a major transition from static JSON/NPY files to a dynamic relational database backend. See `docs/UNIVERSAL_NITRO_ROADMAP.md` (renamed to `UNIVERSAL_NITRO_ROADMAP.md` contextually).
 
 *   **Phase 1 (Current): The Relational Backbone.** Replacing static taxonomies with a PostgreSQL database using the `ltree` extension for dynamic ontology modeling. *(Database `oracle-db` is currently running via Docker).*
 *   **Phase 2: The Feature Store.** Using `pgvector` to store and query multi-domain embeddings.
@@ -58,12 +58,12 @@ We are currently executing a major transition from static JSON/NPY files to a dy
 *   **Phase 5: Automated Model Lineage.** MLOps tracking in Postgres.
 
 ## 6. Recent Structural Changes
-*   Renamed entire codebase from "Nitro" to "Oracle".
+*   Renamed entire codebase from "Nitro" to "plantclef".
 *   Consolidated C++/CUDA extensions, Rust data engines, and Haskell logic into the `engines/` root directory.
 *   Implemented Dynamic Dataset Discovery and WSL optimizations (Ollama integration, Hash Indexing).
 *   Created classical AI baseline examples (`engines/native/classical_ai/`).
 *   Added Optuna and enhanced ablation workflows.
-*   Updated `.github/workflows/oracle_ci.yml` and Python pathing to reflect the new structure.
+*   Updated the GitHub Actions CI and Python pathing to reflect the new structure.
 
 ---
 **INSTRUCTIONS FOR LLM ON RESTART:**

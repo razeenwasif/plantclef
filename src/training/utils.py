@@ -34,7 +34,7 @@ def aggressive_deep_scavenge() -> None:
     accel.empty_cache()
     accel.reset_peak_memory_stats()
 
-def oracle_batch_scavenge() -> None:
+def plantclef_batch_scavenge() -> None:
     """
     Micro-cleanup for per-batch execution.
     Prevents fragmentation without the latency of a full sync.

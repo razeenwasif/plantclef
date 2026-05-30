@@ -1,213 +1,236 @@
-# 🌿 ORACLE: Neural Identifying & Taxonomic Reasoning Orchestrator
+# PlantCLEF 2026 — ANU R&D Fork
 
-[![NVIDIA Blackwell](https://img.shields.io/badge/NVIDIA-Blackwell%20Optimized-76B900?logo=nvidia&logoColor=white)](https://www.nvidia.com/en-us/data-center/blackwell-architecture/)
-[![PyTorch 2.4+](https://img.shields.io/badge/PyTorch-2.4%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
-[![Rust](https://img.shields.io/badge/Rust-High--Performance%20I%2FO-000000?logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+This is the active R&D fork of the PlantCLEF 2026 ANU submission. The
+frozen paper artifact (the version that scored 7th private on the
+leaderboard) lives in `~/Research/PlantCLEF2026`; that repo is what was
+submitted for assessment, this repo is where the post-submission work
+continues.
 
-> **PlantCLEF 2026 Official Implementation**  
-> An elite, neuro-symbolic ensemble designed to identify 7,800+ plant species with high-fidelity botanical reasoning and absolute hardware saturation.
+Public Macro F1 of the headline submission was **0.41826**; corresponding
+private score **0.40283**, with the project's best private being
+**0.40600** (logit-adjusted single-resolution variant).
 
----
-
-## 🚀 The Speed-of-Light Stack
-
-ORACLE is engineered for **NVIDIA Blackwell (RTX 5090 / PRO 6000)** clusters, pushing the theoretical limits of distributed throughput and VRAM efficiency.
-
-### ⚡ Blackwell "Native-Path" Compute
-*   **FP8 Surge:** 2.0x throughput increase via native 8-bit transformer kernels (`TransformerEngine`).
-*   **FlashAttention-4:** Full activation of **TCGEN05** hardware for extreme ViT-L sequence lengths.
-*   **Zero-Copy Preprocessing:** Custom CUDA C++ kernels for Retinex illumination normalization, eliminating CPU-GPU bottlenecks.
-*   **Unified Graph Fusion:** `torch.compile` with full **CUDA Graphs** capture for static, low-latency execution paths.
-
-### 🧬 Zero-Latency Data Infrastructure
-*   **nvJPEG Hardware Decoding:** 100% offload of JPEG decompression to dedicated GPU silicon via NVIDIA DALI.
-*   **Rust-Powered Swarm:** SIMD-optimized metadata and resizing engines (550+ imgs/sec) that bypass the Python GIL.
-*   **RAM-Disk Satiation:** Automated dataset synchronization to `/dev/shm` for zero-latency I/O.
+The report lives in [`report/main.tex`](report/main.tex) (mirrored from
+the frozen repo so this codebase remains self-contained).
 
 ---
 
-## 🏗️ Multi-Language Architecture
+## Repository layout
 
-The pipeline is architected as a polyglot system to maximize hardware occupancy across 8x NVIDIA GPUs.
+The codebase is split into two research streams plus a shared core:
 
-| Component | Language | Responsibility |
-| :--- | :--- | :--- |
-| **Brain** | `Python` | Model logic, training loops, and research orchestration (PyTorch/DALI). |
-| **Muscles** | `Rust` | High-throughput I/O, dataset sharding, and real-time resizing. |
-| **Nervous System** | `Go` | Cluster health monitoring, telemetry API, and mission dispatching. |
-| **Foundations** | `C++/CUDA` | Fused loss kernels, Retinex filters, and custom SAHI tiling engines. |
+```
+.
+├── shared/                            Code reused by both streams
+│   ├── bioclip25_multitask/           BioCLIP 2.5 multitask training
+│   │                                  (model + dataset + train loop)
+│   └── tools/
+│       ├── cache_features.py          Pre-compute backbone features
+│       └── score_submission.py        Metrics + diagnostic plots
+│
+├── quadrat/                           PlantCLEF-style quadrat work
+│   ├── inf_script.py                  Headline anchor recipe (0.41826)
+│   ├── inf_script_phen.py             Pivot 3: seasonal phenology prior
+│   ├── checkpoints/                   Paper anchor + cRT heads
+│   ├── data/plantclef_test/           PlantCLEF 2026 test quadrats
+│   ├── experiments/                   i001/i002/i003 + earlier work
+│   ├── outputs/                       Quadrat inference outputs
+│   └── docs/exp_reports/              Per-experiment writeups
+│
+├── single_plant/                      PlantNet-style single-plant work
+│   ├── inf_script_whole.py            Whole-image (no tile) inference
+│   ├── data/plantnet300k_manifest.csv
+│   ├── outputs/                       PlantNet inference + caches
+│   ├── tools/build_plantnet300k_manifest.py
+│   └── docs/exp_reports/              Per-experiment writeups
+│
+├── src/                               Top-level entry points (shims)
+│   ├── train.py                       -> shared/bioclip25_multitask/train.py
+│   ├── inf_quadrat.py                 -> quadrat/inf_script.py
+│   ├── inf_quadrat_phen.py            -> quadrat/inf_script_phen.py
+│   └── inf_single_plant.py            -> single_plant/inf_script_whole.py
+│
+├── engines/rust/                      SIMD-parallel resize + WebDataset
+│                                      pack + DALI index crates
+├── coordinator/                       Multi-node training control plane
+├── docs/                              Project-wide docs (algorithms,
+│                                      backlog cross-refs, architecture)
+├── report/                            LaTeX source of the working note
+├── legacy/                            Pre-split / archived material
+├── BACKLOG.md                         Future-novelty work
+├── CHANGELOG.md                       Post-submission history
+└── website/                           Project landing page
+```
+
+**Why the split?** PlantCLEF and PlantNet are different problems —
+quadrat aggregation, vegetation filtering, phenology priors, and
+multi-species CSV emission all matter only for the quadrat track,
+while PlantNet-300K is a clean single-plant classification benchmark
+where those layers actively hurt. Keeping the streams next to each
+other lets them share `shared/bioclip25_multitask/` (model, loss,
+training loop) without inheriting each other's quirks.
 
 ---
 
-## 🛠️ Usage Protocol
+## Final paper system
 
-The ORACLE pipeline is managed via the unified **`oracle.py`** CLI.
+The paper's headline configuration is a single BioCLIP 2.5 ViT-H/14
+backbone with per-head MLPs for species, genus and family.
 
-### ⚡ Dual-Accelerator Support
+* **Backbone**: BioCLIP 2.5 ViT-H/14 (`hf-hub:imageomics/bioclip-2.5-vith14`).
+  The lower 28 transformer blocks stay frozen to preserve the
+  Tree-of-Life prior; only the last 4 blocks plus the final layer norm
+  and projection are unfrozen.
+* **Heads**: three independent MLPs of the form
+  `LayerNorm -> Linear(1024 -> 1024) -> GELU -> Dropout(0.2)`,
+  feeding linear classifiers of sizes 7,806 / 1,446 / 181 for species /
+  genus / family.
+* **Loss**: weighted joint cross-entropy with label smoothing 0.1,
+  weights `1.0 * L_species + 0.30 * L_genus + 0.15 * L_family`;
+  missing taxonomy labels encoded as `-1` and masked.
+* **Training data**: the i001 manifest, 2,653,781 single-plant images
+  across 7,806 species (PlantCLEF 2024 + a research-grade iNaturalist
+  pull, deduplicated, genus / family pre-filled). No per-species cap.
+* **Schedule**: two stages of ten epochs each. Stage 1 trains the head
+  MLPs and classifiers with the backbone fully frozen; Stage 2 resumes
+  the weights and additionally unfreezes the last 4 transformer blocks
+  + `ln_post` + `proj`.
+* **Optimiser**: AdamW (head LR `1e-4`, backbone LR `1e-6`, weight decay
+  `1e-4`), one epoch of linear warmup then cosine decay to 1% of peak,
+  global-norm gradient clip 1.0.
+* **Precision**: bfloat16 AMP (no GradScaler), DDP across 2x RTX 5090
+  via `torchrun --nproc_per_node=2`.
+* **Inference**: each quadrat is partitioned into a 4x4 grid of 16
+  tiles; every tile is forwarded through the encoder at both 224 and
+  336 pixels (the ViT-H/14 pos-embed is bicubically resampled for the
+  336 px pass). Per-tile softmax probabilities are averaged across
+  tiles and across the two resolutions, class-prior logit adjustment
+  with `tau = 0.25` is applied against the Laplace-smoothed training
+  prior, and every species with post-adjustment probability above
+  `T = 0.03` is emitted, clamped to `[k_min = 2, k_max = 10]`.
 
-ORACLE trains on both NVIDIA CUDA clusters and Google Cloud TPU VMs through the same CLI. Switch with `--mode`:
-
-```bash
-./oracle.py train --phase p2a --role sprint --mode cuda     # NCCL + torchrun
-./oracle.py train --phase p2a --role sprint --mode tpu      # PJRT + xmp.spawn
-./oracle.py train --phase p2a --role sprint --mode auto     # detect: TPU_NAME → tpu, else cuda
-```
-
-The selector flows through `launch_oracle.sh`, which branches the NCCL/Blackwell vs XLA/PJRT environments, and through `src/training/accelerator.py`, which abstracts device, dtype, autocast, distributed init, and graph-step semantics. The data layer also branches: NVIDIA DALI on CUDA, `webdataset` on TPU (same `.tar` shards, equivalent transforms). See **[docs/TPU.md](docs/TPU.md)** for the full guide.
-
-### 🧭 Cluster Manifest
-
-For multi-host clusters, the topology lives in a single `cluster.yaml` instead of being scattered across env vars and file-lock dances:
-
-```bash
-./oracle.py train --phase p2a --cluster configs/cluster.yaml
-```
-
-The manifest derives `ORACLE_NNODES`, `ORACLE_MASTER_IP`, `ORACLE_NODE_RANK`, device counts, and accelerator mode deterministically. Hostname auto-detect picks the right entry; pass `--host-id` to override. Schema + worked examples in **[docs/CLUSTER.md](docs/CLUSTER.md)**; copyable starting point at `configs/cluster.example.yaml`.
-
-### 1. Foundation Caching (Phase 1)
-Build the foundation feature cache from 1.4M images.
-```bash
-./oracle.py train --phase p1 --role sprint
-```
-
-### 2. Head Warmup (Phase 2a)
-Train three unique warmup baselines on extracted features.
-```bash
-./oracle.py train --phase p2a --role sprint
-```
-
-### 3. Student Distillation (Phase 2b-student)
-Perform multi-seed fine-tuning and student distillation.
-```bash
-./oracle.py train --phase p2b-student --role sprint
-```
-
-### 4. Asymmetric Dual-Teacher Distillation (Phase 2.5 - ad-td)
-Train the high-efficiency "Trinity" student.
-```bash
-./oracle.py train --phase ad-td --role sprint -- --mode extract
-./oracle.py train --phase ad-td --role sprint -- --mode train
-```
-
-### 5. Ultimate Ensemble Inference
-Generate the final submission using the unified mega-ensemble pipeline.
-```bash
-./oracle.py infer --ensemble
-```
+Full hyperparameter, augmentation, and split specification:
+[report Appendix B (Table 7)](report/sections/appendix_development_trace.tex).
 
 ---
 
-## 📊 Performance Benchmarks
+## Quick start
 
-| Optimization | Speedup | Impact |
-| :--- | :--- | :--- |
-| **WebDataset + NVMe** | 5.0× | Zero I/O wait, sequential shard reads. |
-| **Rust Preprocessing** | 8.0× | SIMD-parallel resize at 550+ img/s. |
-| **Teacher Logit Cache** | 3.0× | Eliminates teacher forward passes during KD. |
-| **Blackwell FP8** | 2.0× | Maximum Tensor Core utilization. |
+### Environment
 
----
-
-## 🎛️ Neon Command Center
-
-The ORACLE dashboard is a dual-surface app: an **operator console** for the training fleet and a **public-facing identification platform** built on the same models.
-
-**Live:** [oracle-neuro-sym.web.app](https://oracle-neuro-sym.web.app)
-**Local dev:**
 ```bash
-cd dashboard && bun install && bun run dev
+pip install -r requirements.txt
 ```
-**Deploy:** `./scripts/redeploy_frontend.sh` from the project root.
 
-### 🛰 Operator Console
-Real-time monitoring of the distributed cluster:
-- **Fleet** — per-GPU utilisation, temp, VRAM, power, assigned job.
-- **Mission** — running / queued / failed training jobs with throughput and cost.
-- **Analytics** — Vector-F1 confidence delta, SWA calibration, long-tail recall.
-- **Silicon** — 3D neural-core vitals, NVLink bandwidth, GDDR7 throughput.
-- **Console** — live cluster log stream with anomaly highlighting.
-- **Research** — the PlantCLEF 2026 working note rendered inline.
+Key dependencies: `torch`, `open_clip_torch` (BioCLIP 2.5 weights),
+`pandas`, `Pillow`, `torchvision`.
 
-### 🌿 Product Features
+### Train the paper model
 
-#### Identify ✓
-Drag-and-drop a photo of any plant; ORACLE returns the top-5 species candidates with citation-grade provenance.
-- Live inference pipeline animation (DALI → BioCLIP → DINOv2 → ConvNeXt-V2 → SWA calibration).
-- Circular confidence rings; expandable rows linking out to **GBIF**, **Wikipedia**, **iNaturalist**.
-- Grad-CAM-style attribution heatmap toggle on the uploaded image.
-- Rarity tagging (common / uncommon / rare) and family-level taxonomy.
-- Daily free-tier quota (5/day) with "Upgrade to Pro" path for unlimited use, rare-species alerts, and EXIF GPS auto-tagging.
+`src/train.py` is a thin shim that forwards to
+`shared/bioclip25_multitask/train.py`. The two stages from the paper:
 
-#### Atlas ✓
-Interactive global biodiversity feed with two views in one tab:
-- **Globe** — rotating wireframe earth (three.js + react-three-fiber) with colour-coded pins for recent identifications, pulsing rings on rare-tier finds, click-through to species detail. Drag to rotate, scroll to zoom.
-- **Map** — MapLibre GL 2D phytogeographic view on a dark-cartographic basemap. Custom glowing markers sized by rarity, click to inspect.
-- Shared filter strip: domain toggles (Flora / Terrestrial / Avian / Marine / Urban), time window (24h / 7 days / All).
-- **Trending Taxa** sidebar ranks the most-spotted species in the active window.
-- Live counters for rare pins and active domains.
+```bash
+# Stage 1: head only, 10 epochs, backbone frozen
+torchrun --nproc_per_node=2 src/train.py \
+    --metadata-csv  path/to/metadata_filled_genus_family.csv \
+    --train-image-root path/to/images \
+    --epochs 10 --batch-size 512 --grad-accum-steps 2 \
+    --precision bf16 --freeze-backbone \
+    --head-lr 1e-4 --weight-decay 1e-4 \
+    --output-dir outputs/stage1_head_only
 
-#### Auth & Tier Management ✓
-Firebase Authentication powers identity and tier-based feature gating.
-- **Sign In / Sign Up modal** — email/password and Google OAuth, full-screen blurred overlay with toggle between modes.
-- **Tier system** — `free` (5 IDs/day), `pro` (unlimited + rare-species alerts), `field` (Pro + offline bundle), `admin` (everything).
-- **Account menu** in the header — avatar with tier-coloured initials, dropdown showing email, real tier badge, tier description, and an upgrade CTA.
-- **Admin "View as…" toggle** — admins can impersonate any tier client-side to QA every paywall and quota without logging out. State persists in `localStorage`.
-- **razeen.wasif66@gmail.com** is seeded as admin on first sign-in via the `ADMIN_EMAILS` list in `src/lib/auth.tsx`.
-- **Tier-gated quota** — `Identify` now reads its daily limit from `tierCapabilities(effectiveTier)`. Free shows the `X / 5` chip and "Upgrade to Pro" CTA; Pro+ shows `∞`.
+# Stage 2: resume + unfreeze last 4 blocks, 10 epochs
+torchrun --nproc_per_node=2 src/train.py \
+    --metadata-csv  path/to/metadata_filled_genus_family.csv \
+    --train-image-root path/to/images \
+    --epochs 10 --batch-size 128 --grad-accum-steps 4 \
+    --precision bf16 --unfreeze-last-n-blocks 4 \
+    --backbone-lr 1e-6 --head-lr 1e-4 --weight-decay 1e-4 \
+    --resume outputs/stage1_head_only/checkpoints/best.pt \
+    --resume-weights-only \
+    --output-dir outputs/stage2_last4_blocks
+```
 
-> **One-time Firebase Console setup required:** enable Email/Password and Google sign-in providers under *Authentication → Sign-in method*. The web SDK config is already wired via `dashboard/.env` (`VITE_FIREBASE_*`).
+Head-only training can be massively accelerated by caching backbone
+features once:
 
-#### Journal ✓
-Your personal herbarium. Every identification you make is auto-saved as a stamp in a private collection.
-- **Stats strip**: total entries, unique species, rarity score (rare=10 · uncommon=3 · common=1), day streak.
-- **Pokédex-style grid** — square thumbnails with rarity badges and confidence chips; filter by domain, search by species/family, sort by recency / rarity / confidence.
-- **Detail modal** — full image, taxonomy, habitat, observation timestamp, citation links to GBIF / Wikipedia / iNaturalist.
-- **Share Card export** — one-click 1080×1080 PNG with photo, species, confidence, rarity chip, ORACLE watermark. Built with the Canvas API; free distribution for socials.
-- **Auto-save** from Identify — when a logged-in user completes an identification, the top-1 result is saved silently. The Identify button switches to "Saved · View in Journal" linking straight to the new entry.
-- **Login gate** — unauthenticated users see a CTA explaining the value and a "Sign In" button.
-- Storage: per-user `localStorage` (last 200 entries, images resized to 480 px JPEG). Firestore sync is a follow-up.
+```bash
+python shared/tools/cache_features.py \
+    --metadata-csv path/to/manifest.csv \
+    --output       outputs/feature_cache.pt
 
-#### API · Developer Console ✓
-The public API surface for ORACLE — keys, quotas, code, and plans in one tab.
-- **API Keys management** — create, reveal, copy, revoke (Pro+ tier). Live vs Test environments, masked prefix by default, "Just created · copy now" highlight on freshly minted keys.
-- **30-day usage chart** — recharts area graph with synthetic series until real metering ships.
-- **Quick-start examples** — cURL, Python, and JavaScript snippets for `POST /v1/identify` with one-click copy.
-- **Endpoints reference** — method-coloured table covering identify, batch, species lookup, webhooks, and usage.
-- **Plans strip** — Free / Pro / Enterprise cards with feature lists and inline upgrade buttons; highlights the current plan.
-- Tier gating: docs are public, keys require Pro (auto-granted to admins). Free users see an upgrade gate.
+python src/train.py --feature-cache outputs/feature_cache.pt \
+    --freeze-backbone --no-epoch-snapshots ...
+```
 
-#### Trust ✓
-The B2B sales asset — the *Why you can trust ORACLE* page. Distinct from the Research tab (which is the academic working note).
-- **Hero strip** — macro-F1, species coverage, training corpus, audit lineage.
-- **PlantCLEF 2026 banner** — placeholder for the official rank, lights up the moment the leaderboard publishes.
-- **AC-3 constraint visualisation (the centrepiece)** — interactive SVG flow diagram showing how 12 visual candidates get pruned through Biogeographic → Phenology → Taxonomic constraint columns to reach the final top-5. Hover any species to see exactly which constraint kept or pruned it. Animated bezier edges, glow-on-hover, red strike-throughs on rejections with reason text.
-- **Model cards** — three side-by-side cards for BioCLIP (304 M, MIT, Tree-of-Life), DINOv2 (1.1 B, CC-BY-NC, LVD-142M), and ConvNeXt-V2 (660 M, Apache-2.0, ImageNet-22K).
-- **Training data lineage table** — GBIF (CC0), iNaturalist (CC-BY-NC), PlantCLEF (research-only), Herbarium scans. Per-source counts, share bars, license, source links.
-- **Reproducibility receipt** — commit hash, run ID, dataset SHA-256, seeds, eval timestamp. Each row copyable.
-- **Auditors strip** — "Pending" placeholders until peer review and partner integrations finalise.
+### Reproduce the headline quadrat submission
 
-#### Reports ✓
-Agentic ecological reporting. Turn your journal observations into publish-ready PDFs.
-- **Three templates** — Quick Brief (1 page), Standard (5–10 pages), Audit-Grade (30+ pages with provenance appendix).
-- **Configurator** — organisation name, observation window (7 / 30 / 90 days), optional stakeholder-context prompt for the agent, demo-dataset toggle for empty journals.
-- **Live agentic pipeline** — animated 5-stage progress (Collate → GBIF/IUCN cross-ref → Gemma 4 synthesis → SWA calibration → Layout) modelled on the Identify pipeline.
-- **In-app document preview** — full report rendered on cream paper inside the app: gradient cover page, executive summary, community composition table, species inventory, rare/threatened taxa flags with amber alert chips, numbered recommendations, methods, and a provenance appendix (audit template only).
-- **Download PDF** uses the browser's native print pipeline via an `@media print` stylesheet that hides all chrome and reveals only `.oracle-report` at A4. Yields a clean, paginated PDF with no extra libraries.
-- **Tier gating** — sign-in required; Pro tier (free for admin) unlocks all templates and custom branding. Free sees an upgrade gate.
-- **Real Gemma 4 integration** — currently deterministic synthesis from Journal + tone variants per template. Backend LLM service drop-in lands when the inference path is wired (the data shape and prompt scaffolding are already in `src/lib/reports.ts`).
+```bash
+python src/inf_quadrat.py \
+    --checkpoint    quadrat/checkpoints/paper_anchor/best.pt \
+    --image-dir     quadrat/data/plantclef_test \
+    --metadata-csv  path/to/metadata_filled_genus_family.csv \
+    --output        submission.csv
+```
+
+This is the fixed 4x4 grid + 224+336 + LA (tau=0.25) +
+adaptive-threshold recipe that scored 0.41826 public.
+
+### Phenology pivot (paper Pivot 3)
+
+```bash
+python src/inf_quadrat_phen.py \
+    --checkpoint    quadrat/checkpoints/paper_anchor/best.pt \
+    --image-dir     quadrat/data/plantclef_test \
+    --metadata-csv  path/to/metadata_filled_genus_family.csv \
+    --phenology-csv path/to/gbif_month_histograms.csv \
+    --output        submission_phen.csv
+```
+
+Adds the four phenology-specific stages from Appendix C: multi-scale
+tiling at {1.0, 0.8}, ExG vegetation filter (drop tiles below 15%
+green), entropy-weighted Bayesian aggregation
+`w_t ∝ exp(-H_t) · ExG_t`, and a circular-Gaussian DOY prior
+(sigma=18 d, epsilon=0.05, beta=1.0) built from the GBIF month
+histograms.
+
+### Single-plant whole-image inference (PlantNet)
+
+```bash
+python src/inf_single_plant.py \
+    --checkpoint  outputs/stage2_last4_blocks/checkpoints/best.pt \
+    --image-root  /mnt/d/PlantNet-300k/images/images/test \
+    --output      outputs/single_plant_whole/submission.csv \
+    --resolutions 224 336 --top-k 5
+```
+
+No tiling, no LA, no adaptive thresholding — just softmax-mean over
+the requested resolutions on the centre crop. Writes a CSV with
+`image_id, top1_species_id, top1_prob, topk_species_ids`. Score it
+with `shared/tools/score_submission.py` for Macro F1 + plot suite.
 
 ---
 
-## 📑 Documentation
-- [🧬 Technical Pipeline Guide](docs/PIPELINE.md)
-- [🏗️ System Architecture UML](docs/ARCHITECTURE_UML.md)
-- [📚 Codebase Deep-Dive](docs/CODEBASE_GUIDE.md)
+## Where to read next
+
+* `report/main.tex` — the working note (paper).
+* `BACKLOG.md` — planned novel inference + architecture experiments.
+* `CHANGELOG.md` — post-submission history.
+* `quadrat/docs/exp_reports/` — per-experiment writeups for the
+  quadrat side (paper anchor, phenology pivot, cRT pivot, etc.).
+* `single_plant/docs/exp_reports/` — per-experiment writeups for the
+  PlantNet side (head-only cached run, scout runs, etc.).
 
 ---
 
-<p align="center">
-  <b>Developed for PlantCLEF 2026</b><br>
-  <i>Pushing the boundaries of botanical AI.</i>
-</p>
+## Citation
+
+```bibtex
+@inproceedings{anu-plantclef2026,
+  title  = {Fine-Tuning of BioCLIP 2.5 with Taxonomic Heads for Multi-Species Plant Identification},
+  author = {Raj, Arjun and de Mel, Manindra and Wasif, Razeen and Brake, William},
+  booktitle = {CLEF 2026 Working Notes},
+  year   = {2026},
+}
+```

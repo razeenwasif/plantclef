@@ -6,7 +6,7 @@ from PIL import Image
 
 class TestTimeAdaptor:
     """
-    ORACLE SOTA: Test-Time Training (TTT).
+    PLANTCLEF SOTA: Test-Time Training (TTT).
     Briefly adapts the model to each test quadrat using self-supervision.
     """
     def __init__(self, model: nn.Module, steps: int = 10, lr: float = 1e-5):

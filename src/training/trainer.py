@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-# ORACLE: ATOMIC ENVIRONMENT HARDENING
+# plantclef: ATOMIC ENVIRONMENT HARDENING
 # 1. Path Sync
 project_root = str(Path(__file__).parents[2])
 if project_root not in sys.path:
@@ -26,7 +26,7 @@ import gc
 from tqdm import tqdm
 from datetime import timedelta
 
-# ORACLE: Standard Configuration Interface
+# plantclef: Standard Configuration Interface
 from src import config
 
 def get_pca_module(pca, device):
@@ -82,10 +82,10 @@ def train():
     
     phase_target = args.phase
 
-    # ORACLE: Accelerator setup (cuda | tpu | cpu, controlled by ORACLE_MODE).
+    # plantclef: Accelerator setup (cuda | tpu | cpu, controlled by CLUSTER_MODE).
     # Replaces the old direct torch.cuda.* / NCCL init dance.
     from src.training.accelerator import make_accelerator, set_accelerator
-    accel = make_accelerator(os.environ.get("ORACLE_MODE", "auto"))
+    accel = make_accelerator(os.environ.get("CLUSTER_MODE", "auto"))
     set_accelerator(accel)
     accel.init_distributed()
     device = accel.device
@@ -97,20 +97,20 @@ def train():
     if rank == 0:
         print(f"[Init] Accelerator: {accel.mode}  World Size: {world_size}  Device: {device}")
 
-    # ORACLE: Structured telemetry — one JSONL per rank under reports/telemetry/.
+    # plantclef: Structured telemetry — one JSONL per rank under reports/telemetry/.
     # The liveness probe + (future) sweep coordinator consume these events.
     from src.training.telemetry import telemetry, start_heartbeat
     telemetry.bind(
-        run_id=os.environ.get("ORACLE_RUN_ID") or None,  # let auto-generate if unset
+        run_id=os.environ.get("PLANTCLEF_RUN_ID") or None,  # let auto-generate if unset
         rank=rank, world=world_size, phase=phase_target,
-        host_id=os.environ.get("ORACLE_HOST_ID") or None,
+        host_id=os.environ.get("CLUSTER_HOST_ID") or None,
     )
     telemetry.emit("run.start",
                    accelerator=accel.mode,
                    device=str(device),
-                   seed=int(os.environ.get("ORACLE_SEED", "42")),
-                   name=os.environ.get("ORACLE_NAME", ""))
-    start_heartbeat(interval_sec=float(os.environ.get("ORACLE_HEARTBEAT_INTERVAL", "15")))
+                   seed=int(os.environ.get("PLANTCLEF_SEED", "42")),
+                   name=os.environ.get("PLANTCLEF_NAME", ""))
+    start_heartbeat(interval_sec=float(os.environ.get("PLANTCLEF_HEARTBEAT_INTERVAL", "15")))
 
     # 3. Metadata & Priors
     t0 = time.time()
@@ -121,7 +121,7 @@ def train():
     if os.path.exists(genus_path):
         genus_ids = torch.load(genus_path, map_location=device, weights_only=True).int()[:num_classes]
 
-    # ORACLE: Calculate Class Frequencies for Duality-Derived ASL
+    # plantclef: Calculate Class Frequencies for Duality-Derived ASL
     class_counts = None
     if os.path.exists(csv_path) and rank == 0:
         df = pd.read_csv(csv_path, sep=';', low_memory=False)
@@ -140,7 +140,7 @@ def train():
     # Broadcast counts from master
     if torch.distributed.is_initialized():
         if class_counts is None: class_counts = torch.zeros(num_classes)
-        # ORACLE: NCCL requires GPU tensors
+        # plantclef: NCCL requires GPU tensors
         class_counts = class_counts.to(device)
         torch.distributed.broadcast(class_counts, src=0)
 

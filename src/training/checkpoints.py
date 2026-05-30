@@ -167,7 +167,7 @@ def robust_deepspeed_resume(model_engine, out_dir: str, name: str = "Resume") ->
             if isinstance(sd, dict) and "model_state" in sd:
                 sd = sd["model_state"]
             
-            # ORACLE: Use robust_load_state_dict to handle pos_embed interpolation
+            # plantclef: Use robust_load_state_dict to handle pos_embed interpolation
             # and strip torch.compile prefixes automatically.
             module = model_engine.module
             res = robust_load_state_dict(module, sd, strict=False)
@@ -324,7 +324,7 @@ def robust_load_state_dict(model: torch.nn.Module, state_dict: Dict[str, torch.T
     # 2. Perform Surgery on mismatched shapes (positional embeddings)
     processed_state = resample_pos_embed(cleaned_state, current_state)
     
-    # ORACLE: Filter out parameters with size mismatches (e.g. upgraded projection layers)
+    # plantclef: Filter out parameters with size mismatches (e.g. upgraded projection layers)
     # This prevents RuntimeError when changing total_input_dim.
     final_state = {}
     for k, v in processed_state.items():
@@ -387,7 +387,7 @@ def load_phase1_heads_for_phase2(model: torch.nn.Module, device: torch.device) -
     Load only the classifier weights from the Phase 1 checkpoint into the Phase 2 model.
     Prioritizes the 'best' checkpoint if available.
     """
-    # ORACLE: Prioritize the best-recorded weights for fine-tuning
+    # plantclef: Prioritize the best-recorded weights for fine-tuning
     path = P1_BEST_CKPT_PATH if os.path.exists(P1_BEST_CKPT_PATH) else P1_CKPT_PATH
     
     if not os.path.exists(path):
@@ -511,10 +511,10 @@ def save_phase1_checkpoint(model_engine: torch.nn.Module, epoch: int, best_val_a
         'best_val_acc': best_val_acc,
     }
     
-    # ORACLE: Atomic Save Latest
+    # plantclef: Atomic Save Latest
     _safe_torch_save(data, P1_CKPT_PATH)
     
-    # ORACLE: Atomic Save Best
+    # plantclef: Atomic Save Best
     if is_best:
         _safe_torch_save(data, P1_BEST_CKPT_PATH)
         if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
@@ -541,7 +541,7 @@ def save_epoch_checkpoint(model_engine: torch.nn.Module, epoch: int, best_val_ac
     if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
         print(f"[Checkpoint] Saved epoch {epoch} to {path}")
         
-        # ORACLE: Recovery Backup (Phase 2)
+        # plantclef: Recovery Backup (Phase 2)
         try:
             backup_dir = os.path.join(os.path.dirname(_cfg.BASE_MODEL_DIR), "backups")
             os.makedirs(backup_dir, exist_ok=True)
@@ -567,7 +567,7 @@ def save_progress_checkpoint(model_engine: torch.nn.Module, epoch: int, step: in
     if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
         print(f"\n[Progress-v2] Saved mid-epoch progress to {path}")
         
-        # ORACLE: Storage Auto-Clean (Phase 2)
+        # plantclef: Storage Auto-Clean (Phase 2)
         # Delete previous mid-epoch step to prevent disk overflow
         import glob
         # Find other mid-epoch steps for THIS epoch only

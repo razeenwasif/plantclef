@@ -152,7 +152,7 @@ def solve_quadrat_consistency(
     threshold: float = 0.05
 ) -> list[ImagePrediction]:
     """
-    ORACLE: Apply Quadrat-Level Consistency Solver (AC-3 or Loopy BP).
+    PLANTCLEF: Apply Quadrat-Level Consistency Solver (AC-3 or Loopy BP).
     
     This ensures that species predicted across multiple tiles in a 
     single quadrat are ecologically and taxonomically compatible.
@@ -261,7 +261,7 @@ def postprocess(
     conformal_pred = _get_conformal_predictor(cfg)
 
     if fw_solver:
-        # ORACLE: Globally Optimal Selection in Ecological Polytope
+        # plantclef: Globally Optimal Selection in Ecological Polytope
         k = cfg.top_k or 3
         # FW expects torch tensor, handle numpy conversion if needed
         scores_torch = torch.from_numpy(scores).float()
@@ -351,7 +351,7 @@ def _apply_thresholds(
     list[int]
         List of class indices above the threshold.
     """
-    # ORACLE OPTIMIZATION: Structure of Arrays (SoA) and SIMD Masking
+    # PLANTCLEF OPTIMIZATION: Structure of Arrays (SoA) and SIMD Masking
     # Instead of a scalar Python loop with branching (which destroys instruction pipelines),
     # we build a contiguous threshold array and use vectorized C/AVX instructions via NumPy.
     C = len(scores)

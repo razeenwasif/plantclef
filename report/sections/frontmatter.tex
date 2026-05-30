@@ -1,0 +1,88 @@
+%%
+%% Front matter: rights, conference, title, authors, abstract, keywords.
+%% Included by main.tex before \maketitle.
+
+%%
+%% Rights management information.
+\copyrightyear{2026}
+\copyrightclause{Copyright for this paper by its authors.
+  Use permitted under Creative Commons License Attribution 4.0
+  International (CC BY 4.0).}
+
+%%
+%% Conference information.
+\conference{CLEF 2026 -- Conference and Labs of the Evaluation Forum,
+  September 21--24, 2026, Jena, Germany}
+
+%%
+%% Title.
+\title{Fine-Tuning of BioCLIP 2.5 with Taxonomic Heads for Multi-Species Plant Identification}
+
+%%
+%% Authors.
+%% Per the canonical CEUR-ART template, each author block supports an
+%% optional key-value list with \texttt{orcid=}, \texttt{email=},
+%% \texttt{url=}. Only \texttt{email=} is supplied here; add the other
+%% keys when convenient.
+\author[1]{Arjun Raj}[%
+  email=u7526852@anu.edu.au,
+]
+\fnmark[1]
+
+\address[1]{The Australian National University, Canberra, ACT 2601, Australia}
+
+\author[1]{Manindra de Mel}[%
+  email=u7543337@anu.edu.au,
+]
+\cormark[1]
+\fnmark[1]
+
+\author[1]{Razeen Wasif}[%
+  email=u7619822@anu.edu.au,
+]
+\fnmark[1]
+
+\author[1]{William Brake}[%
+  email=u7480294@anu.edu.au,
+]
+\fnmark[1]
+
+\cortext[1]{Corresponding author.}
+\fntext[1]{These authors contributed equally.}
+
+%%
+%% Abstract.
+\begin{abstract}
+We describe ANU's submission to PlantCLEF 2026, where the task is to
+predict every species present in a vegetation-quadrat image. The
+central challenge is a domain shift where training images show single
+plants while test images show dense multi-species plots; this is
+further compounded by a long-tailed label distribution. Our system is
+BioCLIP~2.5 ViT-H/14 where only the last four transformer blocks plus
+the final layer norm and projection are unfrozen, while the lower
+twenty-eight blocks stay frozen to preserve the Tree-of-Life prior. We
+train on an enlarged manifest that combines PlantCLEF~2024 with a
+research-grade iNaturalist pull (2.65~million single-plant images,
+7{,}806 species) with auxiliary genus- and family-level cross-entropy
+heads that regularise the species head without adding inference cost. At inference each quadrat is split into a $4{\times}4$ grid of
+sixteen tiles, each tile is forwarded through the encoder at both
+$224$ and $336$ pixels, the per-tile softmax distributions are
+averaged across tiles and across resolutions, class-prior logit
+adjustment is applied, and an adaptive probability threshold selects
+the emitted species set. Our best public Macro F1 is \textbf{0.41826}; the same
+configuration scores \textbf{0.40283} private (the strongest private
+result of the project, $0.40600$, comes from a logit-adjusted
+single-resolution variant). Project website: \url{https://arm-wision.github.io/}.
+\end{abstract}
+
+%%
+%% Keywords.
+\begin{keywords}
+  plant identification \sep
+  multi-label classification \sep
+  partial fine-tuning \sep
+  BioCLIP \sep
+  taxonomic auxiliary loss \sep
+  vegetation plot analysis \sep
+  PlantCLEF 2026
+\end{keywords}

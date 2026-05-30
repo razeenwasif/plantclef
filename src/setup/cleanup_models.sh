@@ -1,12 +1,12 @@
 #!/bin/bash
 # ===========================================================================
-# ORACLE: Safe Models Directory Cleanup
+# plantclef: Safe Models Directory Cleanup
 # ===========================================================================
 # Removes expendable intermediate artifacts while hard-protecting:
 #   - models/cuda_deep_sat/phase1_feature_cache.pt
 #   - models/warmup_hardened.pth
 #   - models/cuda_deep_sat/*/swa_model_final.pth
-#   - models/cuda_deep_sat/oracle_s42/swa_model_final.pth
+#   - models/cuda_deep_sat/plantclef_s42/swa_model_final.pth
 #   - models/zero_shot_anchors*.pt
 #   - models/optimized_thresholds.json
 #
@@ -44,7 +44,7 @@ _remove() {
 }
 
 echo "==========================================================="
-echo "ORACLE Model Cleanup  (dry_run=$DRY_RUN)"
+echo "PLANTCLEF Model Cleanup  (dry_run=$DRY_RUN)"
 echo "Root: $MODELS_DIR"
 echo "==========================================================="
 
@@ -58,7 +58,7 @@ _log "$MODELS_DIR/zero_shot_anchors_v2.pt"
 _log "$MODELS_DIR/optimized_thresholds.json"
 _log "$MODELS_DIR/cuda_deep_sat/teacher_logit_cache.npy"
 for f in "$MODELS_DIR"/cuda_deep_sat/*/swa_model_final.pth \
-          "$MODELS_DIR"/cuda_deep_sat/oracle_s*/swa_model_final.pth; do
+          "$MODELS_DIR"/cuda_deep_sat/plantclef_s*/swa_model_final.pth; do
     [[ -f "$f" ]] && _log "$f"
 done
 
@@ -98,11 +98,11 @@ find "$MODELS_DIR" -maxdepth 4 -type d -name "ep[0-9]*" | sort | while read -r d
 done
 
 # ── Old pre-modularization DeepSpeed checkpoint dirs ────────────────────────
-# phase2_checkpoint, phase2_checkpoint_A, phase2_checkpoint_B, oracle_expert_A/B
+# phase2_checkpoint, phase2_checkpoint_A, phase2_checkpoint_B, expert_launcher_A/B
 echo ""
 echo "REMOVABLE — pre-modularization DeepSpeed checkpoint dirs (no epoch_ep*.pth siblings):"
 for pattern in "phase2_checkpoint" "phase2_checkpoint_A" "phase2_checkpoint_B" \
-               "oracle_expert_A" "oracle_expert_B"; do
+               "expert_launcher_A" "expert_launcher_B"; do
     find "$MODELS_DIR" -maxdepth 4 -type d -name "$pattern" | sort | while read -r d; do
         _remove "$d"
     done

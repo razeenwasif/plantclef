@@ -1,0 +1,3 @@
+# Manim Community Edition + supporting libs for the PlantCLEF 2026 scenes.
+manim>=0.18.1
+numpy>=1.24

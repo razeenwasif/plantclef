@@ -6,7 +6,7 @@ import os
 from typing import Optional
 import contextlib
 
-# ORACLE: Robust SDPA Kernel Fallback & Context Wrapper
+# plantclef: Robust SDPA Kernel Fallback & Context Wrapper
 try:
     from torch.nn.attention import sdpa_kernel as _sdpa_kernel, SDPBackend
     _NEW_SDPA = True
@@ -19,7 +19,7 @@ except ImportError:
         SDPBackend = None
         _NEW_SDPA = False
 
-# ORACLE: Determine available backends once
+# plantclef: Determine available backends once
 SDP_BACKENDS = []
 if SDPBackend is not None:
     for b in ["FLASH_ATTENTION", "CUDNN_ATTENTION", "EFFICIENT_ATTENTION"]:

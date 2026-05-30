@@ -44,32 +44,32 @@ Designed for stable BFloat16 training on **NVIDIA RTX 5090 / PRO 6000** clusters
 - **Coordinated Resilient Bypass:** Distributed `all_reduce` protocol to synchronize batch skips across the entire GPU cluster if NaNs are detected.
 - **Atomic Progress Checkpointing:** Saves both weights and the **Full DeepSpeed Engine** (Optimizer/LR) every 5% of the epoch with resume-aware markers.
 
-## 4. Execution (Ultra-ORACLE Protocol)
+## 4. Execution (Ultra-PLANTCLEF Protocol)
 
-The system is designed for **Diverse Ensembling** as its standard operating mode. The primary ground-truth entry point is the `oracle.py` CLI, which orchestrates all backend logic via `src/setup/launch_oracle.sh`.
+The system is designed for **Diverse Ensembling** as its standard operating mode. The primary ground-truth entry point is the `plantclef.py` CLI, which orchestrates all backend logic via `src/setup/launch.sh`.
 
 ### The Ground-Truth Workflow
-Instead of training a single monolithic model, ORACLE trains three independent experts with diverse seeds (`42`, `1337`, `2026`) and merges them at inference time.
+Instead of training a single monolithic model, PLANTCLEF trains three independent experts with diverse seeds (`42`, `1337`, `2026`) and merges them at inference time.
 
 #### Unified Phase Launching
 ```bash
 # 1. Foundation Caching (Pre-compute features)
-./oracle.py train --phase p1 --role sprint
+./plantclef.py train --phase p1 --role sprint
 
 # 2. Head Warmup (Train MLP/GCN heads)
-./oracle.py train --phase p2a --role sprint
+./plantclef.py train --phase p2a --role sprint
 
 # 3. Student Distillation (Deep Fine-Tuning)
-./oracle.py train --phase p2b-student --role sprint
+./plantclef.py train --phase p2b-student --role sprint
 
 # 4. Asymmetric Dual-Teacher Distillation (The Trinity)
-./oracle.py train --phase ad-td --role sprint -- --mode extract
-./oracle.py train --phase ad-td --role sprint -- --mode train
+./plantclef.py train --phase ad-td --role sprint -- --mode extract
+./plantclef.py train --phase ad-td --role sprint -- --mode train
 ```
 
 #### Standard Multi-Seed Inference
 ```bash
-./oracle.py infer --ensemble
+./plantclef.py infer --ensemble
 ```
 ## 5. Centralized Orchestration (Mission Control)
 
@@ -82,13 +82,13 @@ All hyperparameters and hardware settings are defined in **Python Dataclasses**.
 - **`__init__.py`:** Exports legacy variables to ensure backward compatibility for all scripts.
 
 ### Model Registry (`src/config/registry.py`)
-Instead of raw filesystem scanning, ORACLE uses a formal **JSON Registry** to track model artifacts. This ensures the dashboard and ensemble inference pass always use verified, healthy checkpoints.
+Instead of raw filesystem scanning, PLANTCLEF uses a formal **JSON Registry** to track model artifacts. This ensures the dashboard and ensemble inference pass always use verified, healthy checkpoints.
 
-### Oracle CLI (`oracle.py`)
+### plantclef CLI (`plantclef.py`)
 The unified entry point for all system operations.
-- **Training:** `./oracle.py train --phase p2b --seed 42`
-- **Inference:** `./oracle.py infer --ensemble`
-- **Registry:** `./oracle.py registry --list`
+- **Training:** `./plantclef.py train --phase p2b --seed 42`
+- **Inference:** `./plantclef.py infer --ensemble`
+- **Registry:** `./plantclef.py registry --list`
 
 ## 6. Real-Time Observability
 
@@ -100,7 +100,7 @@ A hyper-futuristic React command center served by the Go orchestrator. It provid
 
 ---
 
-### Hardware-Aware Optimization (ORACLE Core)
+### Hardware-Aware Optimization (PLANTCLEF Core)
 ...
 
 The pipeline is designed for absolute performance on Blackwell/Zen4 clusters:

@@ -1,0 +1,12 @@
+[package]
+name = "test_resizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fast_image_resize = "2.7"
+rayon = "1.7"
+indicatif = "0.17"
+anyhow = "1.0"
+walkdir = "2.3"
+image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }

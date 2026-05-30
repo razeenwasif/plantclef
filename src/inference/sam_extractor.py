@@ -13,7 +13,7 @@ except ImportError:
 
 def generate_instance_masks(image: Image.Image, image_id: str, cfg: Any) -> List[Tuple[TileSpec, Image.Image]]:
     """
-    ORACLE SOTA: Use SAM to identify actual plant bodies instead of blind grid tiling.
+    PLANTCLEF SOTA: Use SAM to identify actual plant bodies instead of blind grid tiling.
     """
     if not HAS_SAM:
         print("[Warning] SAM not installed. Falling back to dummy full-image mask.")

@@ -1,0 +1,158 @@
+% ============================================================================
+% Appendix section for the PlantCLEF 2026 report.
+% Suggested placement: after \section{Conclusion}, inside an \appendix block.
+% Requires: \usepackage{tabularx}, \usepackage{booktabs}.
+% The two tables (\input the companion file experiment_summary_table_latex.tex,
+% or paste them where indicated below).
+% ============================================================================
+
+\appendix
+\section{Experiment Summary and Development Trace}
+\label{sec:appendix_experiments}
+
+This appendix collects every major direction we explored for PlantCLEF 2026, what
+each one tested, how deeply we pursued it, its best leaderboard scores, and what we
+took away from it. It is intended as an honest development trace rather than a
+controlled ablation study. Over the project we made more than six hundred Kaggle
+submissions; the tables below summarise them by experiment or by inference direction
+rather than listing every run. All public and private Macro F1 values are taken from
+the Kaggle API as recorded in our submission archive
+(\texttt{docs/submissions\_archive/submission\_manifest.csv}); no score is inferred
+from a training log. Where a private score could not be recovered we write
+\texttt{[nf]} (not found), and directions that never produced a submission (data
+construction and diagnostic analyses) are marked \texttt{[ns]}.
+
+\paragraph{How to read ``exploration depth''.}
+We label each direction with one of five depths.
+\emph{Deep} means many runs or sweeps, follow-up analysis, or a component of the
+final system (for example the i002 model, the aggregation choice, and the headline
+ensemble). \emph{Moderate} means several meaningful runs but not an exhaustive sweep
+(for example the early baselines). \emph{Shallow} means one or a few quick trials.
+\emph{Diagnostic only} means an analysis used to understand behaviour rather than to
+chase a score. \emph{Dropped} means a direction we explored and then abandoned after
+weak or near-neutral results. These labels describe effort and role, not statistical
+significance.
+
+% --- INSERT THE TWO TABLES HERE (Tables \ref{tab:appendix_models} and
+% \ref{tab:appendix_inference} from experiment_summary_table_latex.tex) ---
+
+\subsection{Baselines and zero-shot experiments}
+We first established that the BioCLIP family of foundation models carried useful
+biological signal, then measured how far that signal went without task-specific
+training. Zero-shot tile classification (experiments 001 and 002), in which test
+tiles are matched against species text prompts, scored only around $0.12$ public
+Macro F1 at best, and the SAM vegetation-weighted variant (007) did not improve on
+plain zero-shot aggregation while costing roughly seventy hours of inference. A
+frozen-backbone linear probe (003) roughly doubled the zero-shot score to $0.242$
+public but then plateaued, and a non-parametric few-shot support bank (004) reached
+$0.307$. The lesson from this group is consistent: BioCLIP embeddings are a strong
+starting point, but neither zero-shot matching nor a frozen backbone is enough to
+bridge the shift from single-plant training images to multi-species quadrats.
+
+\subsection{Supervised fine-tuning experiments}
+The decisive gains came from partially fine-tuning BioCLIP 2.5 ViT-H/14. A
+single-head partial fine-tune (006) improved validation accuracy but not public
+Macro F1, which signalled that we needed both a richer head and a better inference
+pipeline. Experiment 010 introduced the end-to-end multitask design: a shared
+multi-layer perceptron feeding species, genus, family, order, and class heads, with
+fixed auxiliary loss weights. It reached $0.391$ public and made two choices that
+carried through the rest of the project, namely softmax-mean tile aggregation and
+unfreezing only the last few transformer blocks. Experiment 011 added SimSiam
+self-supervised pretraining on pseudo-quadrats, but this hurt the frozen-head stage
+and never beat 010. The strongest model, i002, kept the 010 recipe but trained on the
+larger and cleaner i001 manifest (about $2.65$M images), switched to independent
+per-head multi-layer perceptrons for species, genus, and family, and trained for ten
+epochs. Its best single-configuration public score was $0.412$ and it produced the
+best private score of the whole project, $0.40600$, under a lightly logit-adjusted
+configuration. Experiment i003 then capped the data at five hundred images per
+species and added extra GBIF images; this flatter distribution \emph{lowered} public
+Macro F1 to $0.400$, so it was not carried forward. We emphasise that the gap between
+010 and i002 mixes several changes (head topology, data, head count, epochs, and batch
+size) and is therefore not attributable to any single factor.
+
+\subsection{Inference and aggregation experiments}
+On a fixed checkpoint we explored how to turn sixteen per-tile predictions into one
+species set. Among the three pooling rules, softmax-mean (averaging per-tile softmax
+probabilities) was the clear choice: on the i002 four-block checkpoint it beat
+per-species max by about $0.037$ public Macro F1, with the same ordering on the
+private split. Plain logit-space mean was explored only on the weaker 010 head-only
+checkpoint, where it was consistently the worst of the three (best public $0.258$),
+because averaging across sixteen cells dilutes a species that is strong in only one or
+two tiles; we therefore dropped it before i002. For species selection, an adaptive
+probability threshold ($T \approx 0.03$ to $0.05$) dominated fixed top-$k$, relative
+threshold, and gap rules. A mild class-prior logit adjustment ($\tau{=}0.25$) traded a
+little public score for the best private score. Finally, averaging the same checkpoint
+at two inference resolutions ($224$ and $336$ pixels) produced our headline public
+result of $0.418$. A cross-checkpoint ensemble with 010 instead hurt public but
+reached near-best private ($0.405$), a clear example of public and private leaderboard
+disagreement.
+
+\subsection{Data experiments}
+Experiment i001 rebuilt the training corpus by re-downloading PlantCLEF 2024,
+deduplicating an iNaturalist research-grade dump, and adding GBIF images for
+under-represented species, then back-filling genus and family for every row. The
+resulting larger, cleaner manifest is what the winning i002 model trained on, with no
+per-species cap applied. Two data variations were tested and rejected on the
+leaderboard: mixing in iNaturalist data (group 015) raised validation but lowered
+public Macro F1, and capping at five hundred images per species (i003) also lowered
+public score. The extra GBIF images did not move any species above the hundred-image
+threshold, so the long tail remained long. The takeaway is that more clean data helped,
+but artificially balancing or expanding the distribution did not.
+
+\subsection{Diagnostic analyses}
+Three analyses were run to understand the system rather than to chase a score. A head
+architecture audit documented that 010 uses a shared trunk while i002 uses independent
+per-head multi-layer perceptrons, and established that no clean ablation isolates the
+head topology or the taxonomy supervision, so neither can be claimed as the cause of
+i002's gain. A representation analysis (linear CKA and silhouette on validation
+features) showed that the i002 per-head perceptrons are genuinely distinct rather than
+redundant, with the family head most taxonomy-structured, while all heads retain the
+BioCLIP geometry. A within-backbone saturation diagnostic showed that variants of i002
+(different resolutions and unfreeze depths) agree on roughly eighty to ninety percent
+of top-1 predictions, so the remaining internal diversity is below the leaderboard
+noise floor; this motivated the search for orthogonal signals in the three pivots.
+
+\subsection{Final system lineage}
+The final system emerged along a clear path, which we describe as a sequence of choices
+that coincided with our best results rather than as a chain of proven causes. Zero-shot
+and frozen-backbone baselines established that BioCLIP was useful but insufficient.
+End-to-end multitask fine-tuning in experiment 010 produced the first strong model and
+fixed two recurring ingredients, softmax-mean aggregation and last-few-block
+unfreezing. The i001 data rebuild and the move to per-head perceptrons in i002 (trained
+on more clean data with no cap) gave the strongest checkpoint. On top of that
+checkpoint, the aggregation study selected softmax-mean over max and dropped plain mean,
+the selection study chose adaptive probability thresholding, light logit adjustment
+($\tau{=}0.25$) gave the best private score, and a $224{+}336$ resolution ensemble gave
+the best public score of $0.41826$. The three pivots (a triple-backbone classifier, a
+genus/family rerank, and a seasonal phenology prior) were all reranking attempts on this
+anchor; none improved it, and we report the phenology prior as a novelty contribution
+on its own terms.
+
+\subsection{Important caveats for interpreting the appendix}
+\label{sec:appendix_caveats}
+\begin{itemize}
+  \item This is a development trace, not a controlled ablation table. Most rows change
+  several factors at once (data, architecture, schedule, and inference), so a score
+  difference between two rows cannot be attributed to any single change.
+  \item In particular, the 010-to-i002 improvement is confounded by the data rebuild,
+  the head redesign, the head count, the epoch count, and the batch size. We did not
+  run a controlled shared-versus-per-head comparison, nor a species-only run that
+  removes the taxonomy heads, so we report these as design choices, not causes.
+  \item Public and private leaderboards disagree. Our best public configuration
+  ($0.41826$) is not our best private one ($0.40600$), and the i002+010 ensemble is
+  near-best on private while weak on public. We report both columns and avoid implying
+  that the best public run is best overall.
+  \item Held-out single-plant validation accuracy correlates only weakly with
+  multi-species quadrat Macro F1 (about $r{\approx}0.4$ across our strongest runs). The
+  four-block checkpoint beats the eight-block one on the leaderboard despite lower
+  validation accuracy, so validation numbers should not be over-read.
+  \item Some directions are shallow (one or a few submissions) or have no recoverable
+  local code, especially the manifest-only groups 008, 009, 014, and 015. Their setup
+  is inferred from submission messages and should not be over-interpreted.
+  \item The diagnostic analyses are descriptive. They characterise the model and its
+  representations but do not establish causal effects on the score.
+  \item Missing private scores are marked \texttt{[nf]} and data-only or diagnostic rows
+  are marked \texttt{[ns]}. Several near-neutral pivot deltas (about $-0.005$ to
+  $-0.006$) are within the leaderboard noise floor we estimated at roughly $0.002$ and
+  should be read as ``no useful effect'' rather than as a measured decrease.
+\end{itemize}

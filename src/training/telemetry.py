@@ -1,5 +1,5 @@
 """
-ORACLE structured telemetry
+PLANTCLEF structured telemetry
 ===========================
 
 A single event bus that every training-pipeline component can emit into:
@@ -8,7 +8,7 @@ init, GC pressure. Each event is a typed dict with a stable schema:
 
     {
       "ts":        "2026-05-17T08:14:22.135Z",
-      "run_id":    "oracle_s42_p2a_20260517T081422Z",
+      "run_id":    "plantclef_s42_p2a_20260517T081422Z",
       "rank":      2,
       "world":     8,
       "phase":     "p2a",
@@ -19,7 +19,7 @@ init, GC pressure. Each event is a typed dict with a stable schema:
 
 Sinks are pluggable; the default is a JSON-Lines file under
 ``reports/telemetry/<run_id>.jsonl``. Stdout, /dev/null, and W&B are
-also wired. Choose with ``ORACLE_TELEMETRY=file|stdout|wandb|none``
+also wired. Choose with ``PLANTCLEF_TELEMETRY=file|stdout|wandb|none``
 (default ``file``).
 
 Design constraints
@@ -40,7 +40,7 @@ Quick start
 
     from src.training.telemetry import telemetry, start_heartbeat
 
-    telemetry.bind(run_id="oracle_s42_p2a_…", rank=0, world=8,
+    telemetry.bind(run_id="plantclef_s42_p2a_…", rank=0, world=8,
                    phase="p2a", host_id="b1")
     telemetry.emit("run.start", config_hash="abc123")
     start_heartbeat(interval_sec=15)  # daemon thread, marks alive
@@ -158,7 +158,7 @@ class WandbSink(Sink):
             import wandb  # type: ignore
         except ImportError as e:
             raise ImportError(
-                "wandb not installed; use ORACLE_TELEMETRY=file or pip install wandb"
+                "wandb not installed; use PLANTCLEF_TELEMETRY=file or pip install wandb"
             ) from e
         self._wandb = wandb
         self._parallel = parallel_file
@@ -201,14 +201,14 @@ class _Telemetry:
         Run-id resolution, in priority order:
 
         1. Explicit ``run_id=`` argument (rare; usually used in tests).
-        2. ``$ORACLE_RUN_ID_TEMPLATE`` env var, which may contain the
+        2. ``$PLANTCLEF_RUN_ID_TEMPLATE`` env var, which may contain the
            literal placeholder ``{rank}`` — substituted with this rank.
            Used by the pod-agent spawner to pin every rank of a run to
            the same stamp+short while keeping per-rank filenames distinct.
         3. Auto-generated via :func:`_generate_run_id`.
         """
         if not run_id:
-            tmpl = os.environ.get("ORACLE_RUN_ID_TEMPLATE")
+            tmpl = os.environ.get("PLANTCLEF_RUN_ID_TEMPLATE")
             if tmpl:
                 run_id = tmpl.replace("{rank}", str(rank))
             else:
@@ -224,7 +224,7 @@ class _Telemetry:
                 self._configured = True
 
     def _configure_sinks_from_env(self) -> None:
-        choice = os.environ.get("ORACLE_TELEMETRY", "file").lower()
+        choice = os.environ.get("PLANTCLEF_TELEMETRY", "file").lower()
         if choice == "none":
             self._sinks = [NoopSink()]
             return
@@ -232,7 +232,7 @@ class _Telemetry:
             self._sinks = [StdoutSink()]
             return
         # default: JSONL file under reports/telemetry/<run_id>.jsonl
-        log_root = Path(os.environ.get("ORACLE_TELEMETRY_DIR",
+        log_root = Path(os.environ.get("PLANTCLEF_TELEMETRY_DIR",
                                        "reports/telemetry")).resolve()
         log_path = log_root / f"{self._ctx.run_id}.jsonl"
         file_sink = FileSink(log_path)
@@ -276,7 +276,7 @@ class _Telemetry:
             t0 = time.monotonic()
             while not stop.wait(interval_sec):
                 self.emit("heartbeat", uptime_sec=round(time.monotonic() - t0, 2))
-        t = threading.Thread(target=_loop, name="oracle-heartbeat", daemon=True)
+        t = threading.Thread(target=_loop, name="plantclef-heartbeat", daemon=True)
         t.start()
         self._heartbeat_stop = stop
         self._heartbeat_thread = t
@@ -308,7 +308,7 @@ def start_heartbeat(interval_sec: float = 15.0) -> None:
 def _generate_run_id(phase: str, rank: int) -> str:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     short = uuid.uuid4().hex[:6]
-    return f"oracle_{phase or 'run'}_r{rank}_{stamp}_{short}"
+    return f"plantclef_{phase or 'run'}_r{rank}_{stamp}_{short}"
 
 
 def _json_default(o: Any) -> Any:

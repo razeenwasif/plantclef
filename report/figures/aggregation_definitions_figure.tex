@@ -1,0 +1,113 @@
+% Tile-aggregation definitions figure -- modern conference (ICCV/NeurIPS) style.
+% Clean per-method accent colours, soft row cards, heatmap-style tile grids,
+% rounded score bars, sans-serif typography.
+%
+% Layout: one row per pooling rule.
+%   accent label | tile-evidence heatmap | -> | tile-contribution heatmap | -> | score bar | word
+% The same 4x4 evidence map appears in every row; the contribution grid shows how
+% each rule weights the tiles (equal / winner-take-all / normalized); the rounded
+% score bar is a qualitative outcome (no numbers).
+%
+% Required preamble (already in report/preamble.tex):
+%   \usepackage{tikz}
+%   \usetikzlibrary{positioning,arrows.meta,calc}
+%
+% Include in a figure* float (see sections/experiments.tex).
+
+\begin{tikzpicture}[
+  font=\sffamily,
+  >={Stealth[length=4.5pt,width=5pt]},
+  collab/.style={font=\sffamily\scriptsize\bfseries, text=black!55, anchor=south},
+  outlab/.style={font=\sffamily\footnotesize\itshape, anchor=west},
+  note/.style={font=\sffamily\scriptsize, text=black!60, align=center,
+               draw=black!12, fill=black!2, rounded corners=3pt, inner sep=6pt},
+  cell/.style={draw=black!10, line width=0.4pt},
+]
+
+% --- palette -----------------------------------------------------------------
+\definecolor{Evid}{RGB}{33,82,160}       % evidence heat (deep blue)
+\definecolor{EvidBg}{RGB}{233,239,250}   % evidence heat (low)
+\definecolor{MeanA}{RGB}{42,157,123}     % teal-green
+\definecolor{MaxA}{RGB}{226,135,38}      % amber
+\definecolor{SoftA}{RGB}{123,84,193}     % violet
+
+\def\px{0.42}   % cell pitch (cm)
+\def\cz{0.36}   % cell size  (cm)
+
+% evidence heatmap grid: #1 x, #2 y, #3 single-line list c/r/v (no spaces)
+\newcommand{\egrid}[3]{%
+  \begin{scope}[shift={(#1,#2)}]
+    \foreach \c/\r/\v in {#3}{
+      \fill[Evid!\v!EvidBg] (\c*\px,\r*\px) rectangle ++(\cz,\cz);
+      \draw[cell]           (\c*\px,\r*\px) rectangle ++(\cz,\cz);
+    }
+  \end{scope}}
+
+% contribution heatmap grid: #1 accent, #2 x, #3 y, #4 list
+\newcommand{\cgrid}[4]{%
+  \begin{scope}[shift={(#2,#3)}]
+    \foreach \c/\r/\v in {#4}{
+      \fill[#1!\v!white] (\c*\px,\r*\px) rectangle ++(\cz,\cz);
+      \draw[cell]        (\c*\px,\r*\px) rectangle ++(\cz,\cz);
+    }
+  \end{scope}}
+
+% rounded score bar: #1 accent, #2 x, #3 ycenter, #4 fill width (frame width 1.78)
+\newcommand{\sbar}[4]{%
+  \draw[draw=#1!35,line width=0.5pt,rounded corners=1.6pt] (#2,{#3-0.19}) rectangle ++(1.78,0.38);
+  \fill[#1!88,rounded corners=1.6pt]                       (#2,{#3-0.19}) rectangle ++(#4,0.38);}
+
+% --- geometry ----------------------------------------------------------------
+\def\Lx{0.15}\def\Rx{11.65}      % row-card extent
+\def\xev{2.95}\def\xwt{5.75}\def\xbar{8.35}
+\def\cyA{0}\def\cyB{-2.20}\def\cyC{-4.40}
+
+% one row: #1 accent, #2 cy, #3 label, #4 evidence-y, contribution list passed sep.
+% (rows drawn explicitly below so each can carry its own contribution map + bar)
+
+% --- column headers ----------------------------------------------------------
+\node[collab] at ({\xev+0.81},1.22)  {Tile evidence};
+\node[collab] at ({\xwt+0.81},1.22)  {Tile contribution};
+\node[collab] at ({\xbar+0.89},1.22) {Image score};
+
+% ============================ Row: Mean ======================================
+\fill[MeanA!7,rounded corners=4pt] (\Lx,{\cyA-0.98}) rectangle (\Rx,{\cyA+0.98});
+\fill[MeanA!80,rounded corners=2pt] ({\Lx+0.07},{\cyA-0.86}) rectangle ++(0.11,1.72);
+\node[font=\sffamily\small\bfseries,text=MeanA!75!black,anchor=west] at (0.42,\cyA) {Mean};
+\egrid{\xev}{\cyA-0.81}{0/3/6,1/3/10,2/3/14,3/3/7,0/2/10,1/2/22,2/2/40,3/2/13,0/1/10,1/1/34,2/1/88,3/1/18,0/0/7,1/0/13,2/0/30,3/0/10}
+\cgrid{MeanA}{\xwt}{\cyA-0.81}{0/3/34,1/3/34,2/3/34,3/3/34,0/2/34,1/2/34,2/2/34,3/2/34,0/1/34,1/1/34,2/1/34,3/1/34,0/0/34,1/0/34,2/0/34,3/0/34}
+\draw[->,line width=0.5pt,draw=MeanA!70] ({\xev+1.70},\cyA) -- ({\xwt-0.14},\cyA);
+\draw[->,line width=0.5pt,draw=MeanA!70] ({\xwt+1.70},\cyA) -- ({\xbar-0.14},\cyA);
+\sbar{MeanA}{\xbar}{\cyA}{0.56}
+\node[outlab,text=MeanA!72!black] at ({\xbar+1.92},\cyA) {diluted};
+
+% ============================ Row: Max =======================================
+\fill[MaxA!8,rounded corners=4pt] (\Lx,{\cyB-0.98}) rectangle (\Rx,{\cyB+0.98});
+\fill[MaxA!85,rounded corners=2pt] ({\Lx+0.07},{\cyB-0.86}) rectangle ++(0.11,1.72);
+\node[font=\sffamily\small\bfseries,text=MaxA!72!black,anchor=west] at (0.42,\cyB) {Max};
+\egrid{\xev}{\cyB-0.81}{0/3/6,1/3/10,2/3/14,3/3/7,0/2/10,1/2/22,2/2/40,3/2/13,0/1/10,1/1/34,2/1/88,3/1/18,0/0/7,1/0/13,2/0/30,3/0/10}
+\draw[draw=MaxA,line width=0.9pt,rounded corners=0.6pt] ({\xev+2*\px},{\cyB-0.81+1*\px}) rectangle ++(\cz,\cz);
+\cgrid{MaxA}{\xwt}{\cyB-0.81}{0/3/12,1/3/12,2/3/12,3/3/12,0/2/12,1/2/12,2/2/12,3/2/12,0/1/12,1/1/12,2/1/92,3/1/12,0/0/12,1/0/12,2/0/12,3/0/12}
+\draw[draw=MaxA,line width=0.9pt,rounded corners=0.6pt] ({\xwt+2*\px},{\cyB-0.81+1*\px}) rectangle ++(\cz,\cz);
+\draw[->,line width=0.5pt,draw=MaxA!75] ({\xev+1.70},\cyB) -- ({\xwt-0.14},\cyB);
+\draw[->,line width=0.5pt,draw=MaxA!75] ({\xwt+1.70},\cyB) -- ({\xbar-0.14},\cyB);
+\sbar{MaxA}{\xbar}{\cyB}{1.58}
+\node[outlab,text=MaxA!72!black] at ({\xbar+1.92},\cyB) {high, noisy};
+
+% ============================ Row: Softmax-mean ==============================
+\fill[SoftA!8,rounded corners=4pt] (\Lx,{\cyC-0.98}) rectangle (\Rx,{\cyC+0.98});
+\fill[SoftA!82,rounded corners=2pt] ({\Lx+0.07},{\cyC-0.86}) rectangle ++(0.11,1.72);
+\node[font=\sffamily\small\bfseries,text=SoftA!72!black,anchor=west] at (0.42,\cyC) {Softmax-mean};
+\egrid{\xev}{\cyC-0.81}{0/3/6,1/3/10,2/3/14,3/3/7,0/2/10,1/2/22,2/2/40,3/2/13,0/1/10,1/1/34,2/1/88,3/1/18,0/0/7,1/0/13,2/0/30,3/0/10}
+\cgrid{SoftA}{\xwt}{\cyC-0.81}{0/3/10,1/3/14,2/3/18,3/3/12,0/2/14,1/2/26,2/2/40,3/2/18,0/1/14,1/1/34,2/1/64,3/1/22,0/0/10,1/0/16,2/0/32,3/0/12}
+\draw[->,line width=0.5pt,draw=SoftA!72] ({\xev+1.70},\cyC) -- ({\xwt-0.14},\cyC);
+\draw[->,line width=0.5pt,draw=SoftA!72] ({\xwt+1.70},\cyC) -- ({\xbar-0.14},\cyC);
+\sbar{SoftA}{\xbar}{\cyC}{1.22}
+\node[outlab,text=SoftA!70!black] at ({\xbar+1.92},\cyC) {robust};
+
+% --- footer note -------------------------------------------------------------
+\node[note,text width=108mm,anchor=north] at (5.9,{\cyC-1.18})
+  {Aggregation maps the 16 tile predictions to one image-level score vector.
+   Top-$k$ and probability thresholding are applied afterwards, as selection rules.};
+
+\end{tikzpicture}

@@ -81,7 +81,7 @@ class FrankWolfeSolver:
         torch.Tensor
             (C,) continuous solution y ∈ [0, 1]^C, sparse around ≤ sparsity_k entries.
         """
-        # ORACLE: Align solver to exactly the model's logits (e.g. 7806)
+        # plantclef: Align solver to exactly the model's logits (e.g. 7806)
         # If the graph is missing the last few species, we pad it on the fly.
         num_model_classes = logits.shape[0]
         if num_model_classes > self.num_classes:
@@ -114,7 +114,7 @@ class FrankWolfeSolver:
         k: int,
     ) -> torch.Tensor:
         """
-        Greedy Linear Minimization Oracle for the Ecological Polytope.
+        Greedy Linear Minimization plantclef for the Ecological Polytope.
 
         Finds the vertex v maximizing <v, effective_g> while enforcing AC-3
         consistency (a species may only be selected if it is an allowed neighbour
@@ -162,7 +162,7 @@ class FrankWolfeSolver:
                     selected_indices.append(idx)
                     selected_count += 1
                     
-                    # ORACLE: Apply Allelopathic Repulsion (Chemical Exclusion)
+                    # plantclef: Apply Allelopathic Repulsion (Chemical Exclusion)
                     if self.allelopathy_matrix is not None:
                         # Repel competitors by subtracting their known antagonism weights
                         # Ensure we only subtract within the bounds of the prior matrix (e.g. 7806)

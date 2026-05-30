@@ -49,19 +49,29 @@ target/
 **/*.rs.bk
 
 # Compiled Binaries
-oracle_control
-oracle_inf
-hmm_check
+coordinator/go/coord
+coordinator/go/expert/expert_launcher
+coordinator/go/inf/inf_launcher
 
 # Large Data/Models/Notebooks (selective)
 *.pdf
 *.ipynb
+*.pt
 *.pth
 *.h5
 *.bin
 *.csv
 *.wasm
 *.node
+
+# Training artefacts (large + regenerable; matched anywhere in tree)
+outputs/
+checkpoints/
+feature_cache*/
+
+# Public datasets that should be downloaded, not git-tracked
+data/plantclef_test/
+data/plantnet300k_manifest.csv
 
 # IDEs
 .vscode/

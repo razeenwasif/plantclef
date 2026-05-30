@@ -1,0 +1,56 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+
+Our analysis (\S\ref{sec:analysis}) leaves a clear practical implication: real headroom on this
+benchmark requires structurally stronger \emph{visual} models (end-to-end fine-tuning that
+preserves the prior, multi-crop test-time augmentation, test-time training, synthetic mosaic
+training distributions) rather than post hoc reweighting with auxiliary priors. The remainder of
+this section is candid about what our results do and do not establish.
+
+\paragraph{What we did not cleanly ablate.} Our strongest model, i002, differs from the earlier
+010 fine-tune along several axes at once: the training data ($1.41$M $\to$ $2.65$M images, a
+different manifest), the schedule (five $\to$ ten epochs and a larger effective batch), the head
+topology (a shared MLP trunk $\to$ independent per-head MLPs), and the head count (five $\to$
+three taxonomic levels). No run isolates any one of these factors, so we report i002 as the
+stronger configuration overall and make \emph{no} causal claim that the per-head head design
+caused the gain. Nor do we ablate the taxonomy supervision itself: we never trained a
+species-only control with the auxiliary heads removed, so the auxiliary losses are reported as a
+deliberate regulariser, not as a measured improvement. The one head-adjacent factor we did
+isolate, the number of unfrozen blocks (holding the 010 head fixed), shows a sharp optimum at
+four blocks (\S\ref{sec:blocks_ablation}), and that is the surface the final anchor uses. The
+single near-controlled counterfactual we have is the i003 cap (\S\ref{sec:longtail}), where only
+the manifest changed and the score dropped.
+
+\paragraph{Public and private leaderboard instability.} The public and private splits do not rank
+our configurations the same way. Our best public submission ($0.41826$) is not our best private
+one: the lightly logit-adjusted single-resolution run is the strongest on the private split
+($0.40600$), and an i002+010 cross-checkpoint ensemble is near-best private while weak public.
+The three pivot deltas ($-0.005$ to $-0.036$) are mostly within or near the ${\sim}0.002$
+run-to-run noise floor we characterise in \S\ref{sec:eval_protocol}, so apart from cRT they should
+be read as ``no usable effect'' rather than as measured decreases. We therefore carry both
+columns throughout the paper and avoid implying that the best public run is best overall.
+
+\paragraph{Limitations of the representation analysis.} The head-representation study
+(\S\ref{sec:head_repr}) is descriptive geometry, not a controlled experiment. It uses a single
+checkpoint per design, a single $4{,}000$-image sample per experiment, and two different
+validation splits (only $62$ of $4{,}000$ sampled images overlap), so we compare each
+representation only against its own encoder and never cross-experiment. It characterises what the
+shared and per-head designs do to the feature space; it does not isolate the effect of head
+topology on Macro F1. More broadly, the full development trace in
+Appendix~\ref{app:experiment_summary} is exactly that, a trace rather than a controlled
+ablation table, and most of its rows change several factors at once.
+
+\paragraph{Future work.} Several directions follow directly from these findings. The first is to
+pull on the data axis rather than the capacity axis: a synthetic mosaic training regime that
+composes single-plant images into multi-species scenes with controlled overlap would let the
+network see the quadrat distribution during training, which neither the PlantCLEF~2024 corpus nor
+iNaturalist habitat shots do at scale. The second is self-distillation against our own production
+checkpoint, using its predictions on the unlabelled LUCAS pseudo-quadrat corpus as soft targets
+filtered by confidence and entropy. The third is genuinely orthogonal evidence that is not in the
+image at all, in particular a location-conditioned bioclimatic envelope prior built from
+training-image coordinates against WorldClim variables at each test site, the one orthogonal axis
+that visual features cannot recover from the image alone (this experiment is blocked here only by
+the absence of test-site coordinates). Finally, per-class threshold calibration on a held-out
+multi-species validation set would target Macro F1 more directly than the global probability
+threshold we currently use, and could absorb residual species-frequency imbalance that our
+manifest leaves behind.

@@ -1,0 +1,127 @@
+\documentclass[tikz, border=14pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, shapes.geometric}
+
+\definecolor{tileblue}{RGB}{52, 101, 164}
+\definecolor{encodergreen}{RGB}{36, 120, 80}
+\definecolor{mlpbrown}{RGB}{160, 90, 30}
+\definecolor{headpurple}{RGB}{105, 60, 150}
+\definecolor{aggcyan}{RGB}{20, 130, 150}
+\definecolor{thresholdorange}{RGB}{200, 100, 20}
+
+\begin{document}
+\begin{tikzpicture}[
+    box/.style={
+        rectangle, rounded corners=4pt,
+        minimum width=2.5cm, minimum height=3.2cm,
+        text width=2.3cm,
+        align=center,
+        font=\footnotesize,
+        draw, thick
+    },
+    titlelab/.style={font=\small\bfseries, text centered},
+    sublab/.style={font=\scriptsize, text centered},
+    arrow/.style={-{Stealth[length=7pt]}, thick, gray!60!black},
+    arrowlabel/.style={font=\scriptsize, midway, above, text centered},
+]
+
+%% ---- 1. QUADRAT / TILING ----
+\node[box, fill=tileblue!12, draw=tileblue] (quadrat) {%
+    \begin{tikzpicture}[scale=0.38]
+        \foreach \x in {0,1,2,3}{
+            \foreach \y in {0,1,2,3}{
+                \draw[tileblue!70, thin]
+                    (\x*0.6, \y*0.6) rectangle +(0.55,0.55);
+            }
+        }
+    \end{tikzpicture}\\[4pt]
+    \textbf{4$\times$4 Tiling}\\[2pt]
+    448 px tiles\\
+    $\downarrow$ resize\\
+    224 px input
+};
+\node[titlelab, above=0.18cm of quadrat, color=tileblue] {Input};
+
+%% ---- 2. ENCODER ----
+\node[box, fill=encodergreen!12, draw=encodergreen,
+      right=1.3cm of quadrat] (encoder) {%
+    \textbf{BioCLIP 2.5}\\
+    \textbf{ViT-H/14}\\[4pt]
+    28 blocks\\
+    frozen\\[4pt]
+    \textit{last 4 blocks}\\
+    \textit{+ LayerNorm}\\
+    \textit{+ proj: unfrozen}\\[4pt]
+    \textbf{1024-d CLS}
+};
+\node[titlelab, above=0.18cm of encoder, color=encodergreen] {Encoder};
+
+%% ---- 3. SHARED MLP HEAD ----
+\node[box, fill=mlpbrown!12, draw=mlpbrown,
+      right=1.3cm of encoder] (mlp) {%
+    \textbf{Shared MLP}\\[4pt]
+    LayerNorm\\
+    $\downarrow$\\
+    Linear\\
+    $\downarrow$\\
+    GELU\\
+    $\downarrow$\\
+    Dropout
+};
+\node[titlelab, above=0.18cm of mlp, color=mlpbrown] {Projection};
+
+%% ---- 4. TAXONOMIC HEADS ----
+\node[box, fill=headpurple!12, draw=headpurple,
+      right=1.3cm of mlp] (heads) {%
+    \textbf{Tax.\ Heads}\\[4pt]
+    Species\\(7{,}806)\\[2pt]
+    Genus\\(1{,}446)\\[2pt]
+    Family\\(181)
+};
+\node[titlelab, above=0.18cm of heads, color=headpurple] {Multi-Task};
+
+%% ---- 5. SOFTMAX AGGREGATION ----
+\node[box, fill=aggcyan!12, draw=aggcyan,
+      right=1.3cm of heads] (agg) {%
+    \textbf{Softmax}\\
+    \textbf{Mean}\\[4pt]
+    Per-species\\
+    mean across\\
+    16 tiles\\[4pt]
+    \textit{(noisy-or}\\
+    \textit{ablated,}\\
+    \textit{mean best)}
+};
+\node[titlelab, above=0.18cm of agg, color=aggcyan] {Aggregation};
+
+%% ---- 6. ADAPTIVE THRESHOLD ----
+\node[box, fill=thresholdorange!12, draw=thresholdorange,
+      right=1.3cm of agg] (thresh) {%
+    \textbf{Adaptive}\\
+    \textbf{Threshold}\\[4pt]
+    $T = 0.05$\\[4pt]
+    floor: 2\\
+    ceil: 10\\[4pt]
+    \textbf{Species set}\\
+    \textbf{per quadrat}
+};
+\node[titlelab, above=0.18cm of thresh, color=thresholdorange] {Selection};
+
+%% ---- ARROWS ----
+\draw[arrow] (quadrat.east) -- (encoder.west)
+    node[arrowlabel] {16 tiles};
+
+\draw[arrow] (encoder.east) -- (mlp.west)
+    node[arrowlabel] {1024-d};
+
+\draw[arrow] (mlp.east) -- (heads.west)
+    node[arrowlabel] {hidden};
+
+\draw[arrow] (heads.east) -- (agg.west)
+    node[arrowlabel] {logits};
+
+\draw[arrow] (agg.east) -- (thresh.west)
+    node[arrowlabel] {probs};
+
+\end{tikzpicture}
+\end{document}

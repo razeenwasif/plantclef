@@ -1,10 +1,10 @@
-"""Unified Config Package for ORACLE.
+"""Unified Config Package for PLANTCLEF.
 Exports both the new typed system and legacy global variables.
 """
 import os
 import sys
 from .loader import load_config
-from .schema import OracleConfig, TrainingConfig, ModelConfig, HardwareConfig, TilingConfig, FilterConfig, AggregationConfig, PostprocessConfig
+from .schema import PlantCLEFConfig, TrainingConfig, ModelConfig, HardwareConfig, TilingConfig, FilterConfig, AggregationConfig, PostprocessConfig
 
 # 1. Load the unified config object
 # If a YAML config was passed in CLI, we try to find it (best effort for legacy)
@@ -88,7 +88,7 @@ def get_raw_config():
 
 __all__ = [
     "load_config",
-    "OracleConfig",
+    "PlantCLEFConfig",
     "TrainingConfig",
     "ModelConfig",
     "HardwareConfig",

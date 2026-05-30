@@ -1,7 +1,7 @@
-# The Universal ORACLE Roadmap
+# The Universal PLANTCLEF Roadmap
 **From Static Scripts to a Dynamic Neuro-Symbolic Knowledge Engine**
 
-This roadmap is your step-by-step guide to rebuilding the Oracle system into a Universal Identifier. We will take this one phase at a time. 
+This roadmap is your step-by-step guide to rebuilding the plantclef system into a Universal Identifier. We will take this one phase at a time. 
 
 ---
 
@@ -82,4 +82,4 @@ docker run --name oracle-db -e POSTGRES_PASSWORD=oracle -p 5432:5432 -d pgvector
 
 ### Your Action Items:
 * [ ] **Task 5.1:** Create `Models`, `Datasets`, and `TrainingRuns` tables in Postgres.
-* [ ] **Task 5.2:** Update `oracle.py` so that when a training run starts, it logs the `run_id`, hyperparameters, and dataset hash into Postgres.
+* [ ] **Task 5.2:** Update `plantclef.py` so that when a training run starts, it logs the `run_id`, hyperparameters, and dataset hash into Postgres.

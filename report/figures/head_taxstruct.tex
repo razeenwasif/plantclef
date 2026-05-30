@@ -1,0 +1,35 @@
+% Taxonomy-structure bars -- cosine silhouette per head representation, family
+% and genus levels. Within-experiment only (see caption).
+% Source: report/head_features/tex_plan/taxonomy_structure_plot_data.csv
+%   (== tex_info/taxonomy_structure_metrics.csv / plot_data_for_tex.csv silhouette_*).
+% Style follows figures/unfreeze_sweep.tex. Include in a single-column figure.
+\begin{tikzpicture}
+  \begin{groupplot}[
+      group style={group size=2 by 1, horizontal sep=1.5cm},
+      width=5.0cm, height=5.0cm,
+      ymin=0, ymax=0.33,
+      ytick={0,0.1,0.2,0.3},
+      ylabel near ticks,
+      symbolic x coords={010 enc, 010 shr, i02 enc, i02 sp, i02 ge, i02 fa},
+      xtick=data,
+      xticklabel style={rotate=55, anchor=east, font=\tiny},
+      yticklabel style={font=\scriptsize},
+      grid=major, grid style={dashed,gray!20},
+      enlarge x limits=0.10,
+      every node near coord/.append style={font=\tiny, color=black!70},
+    ]
+    % ---- Family-level silhouette ----
+    \nextgroupplot[ybar, bar width=7pt, title={Family-level}, title style={font=\small}, ylabel={Cosine silhouette}]
+      \addplot+[draw=blue!55!black, fill=blue!28]
+        coordinates {(010 enc,0.1343) (010 shr,0.1766) (i02 enc,0.1336)
+                     (i02 sp,0.1579) (i02 ge,0.1928) (i02 fa,0.2597)};
+      \node[anchor=south, font=\tiny, color=orange!75!black] at (axis cs:i02 fa,0.2597) {0.26};
+
+    % ---- Genus-level silhouette ----
+    \nextgroupplot[ybar, bar width=7pt, title={Genus-level}, title style={font=\small}]
+      \addplot+[draw=blue!55!black, fill=blue!28]
+        coordinates {(010 enc,0.1829) (010 shr,0.2148) (i02 enc,0.1851)
+                     (i02 sp,0.2200) (i02 ge,0.2517) (i02 fa,0.2958)};
+      \node[anchor=south, font=\tiny, color=orange!75!black] at (axis cs:i02 fa,0.2958) {0.30};
+  \end{groupplot}
+\end{tikzpicture}

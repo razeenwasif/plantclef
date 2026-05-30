@@ -1,0 +1,215 @@
+% ============================================================================
+% Supplementary appendices (B onward): material kept out of the main text to
+% preserve the top-down narrative -- the i002 training-configuration
+% table, the long-tail manifest detail, the full seasonal-phenology method (a
+% pivot that did not improve over the visual anchor), the additional inference
+% sweeps, and the considered-but-not-implemented directions. Cross-referenced
+% from the main text (\ref{sec:training_config}, \ref{sec:cap_extra_detail},
+% \ref{sec:phenology}, \ref{sec:appendix_extra_sweeps}).
+% This file is \input after sections/appendix_experiment_summary.tex, which has
+% already opened the \appendix; no second \appendix is needed here.
+% ============================================================================
+
+\section{Training Configuration of the i002 Model}
+\label{sec:training_config}
+
+The i002 model is the second stage of a two-stage schedule on the i001 manifest of
+\S\ref{sec:cap_extra}. Stage~1 trains the head MLPs and the species, genus and family classifiers
+with the BioCLIP~2.5 backbone fully frozen; Stage~2 resumes the model weights only and additionally
+unfreezes the last four transformer blocks together with the final layer norm and projection.
+Both stages share the data, loss, optimiser family, schedule, precision, and augmentation
+pipeline; they differ only in the trainable surface and in the effective batch size used.
+Table~\ref{tab:training_config} gives the full specification.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.22\linewidth}>{\raggedright\arraybackslash}p{0.26\linewidth}>{\raggedright\arraybackslash}p{0.44\linewidth}@{}}
+    \toprule
+    Parameter & Stage 1 (head only) & Stage 2 (last-4 blocks) \\
+    \midrule
+    Trainable surface         & head MLPs + classifiers       & + last 4 transformer blocks + \texttt{ln\_post} + \texttt{proj} \\
+    Initialisation            & random head, frozen backbone  & Stage 1 best checkpoint (weights only) \\
+    Epochs                    & $10$                          & $10$ \\
+    Per-GPU batch size        & $512$                         & $128$ \\
+    Gradient accumulation     & $2$                           & $4$ \\
+    Effective batch           & $2048$                        & $1024$ \\
+    Total optimisation steps  & $11{,}680$                    & $23{,}350$ \\
+    Warmup steps (1 epoch)    & $1{,}168$                     & $2{,}335$ \\
+    \midrule
+    \multicolumn{3}{@{}l}{\emph{Shared across both stages}} \\
+    \midrule
+    Backbone                  & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{BioCLIP~2.5 ViT-H/14 (\nolinkurl{hf-hub:imageomics/bioclip-2.5-vith14})} \\
+    Head MLP (per task)       & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{LayerNorm $\to$ Linear($1024 {\to} 1024$) $\to$ GELU $\to$ Dropout($0.2$)} \\
+    Classifiers               & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{species ($7{,}806$), genus ($1{,}446$), family ($181$)} \\
+    Loss                      & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{$\mathcal{L}_{\text{species}} + 0.30\,\mathcal{L}_{\text{genus}} + 0.15\,\mathcal{L}_{\text{family}}$, cross entropy with label smoothing $0.1$} \\
+    Missing taxonomy labels   & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{encoded as $-1$ and masked out of the auxiliary loss} \\
+    Optimiser                 & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{AdamW; head LR $1{\times}10^{-4}$, backbone LR $1{\times}10^{-6}$, weight decay $1{\times}10^{-4}$} \\
+    LR schedule               & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{linear warmup for one epoch, then cosine decay to $1\%$ of peak} \\
+    Gradient clip             & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{$1.0$ (global norm)} \\
+    Precision                 & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{bfloat16 AMP, no \texttt{GradScaler}} \\
+    Hardware                  & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{$2 \times$ NVIDIA RTX~5090, DDP via \nolinkurl{torchrun --nproc_per_node=2}} \\
+    Training image size       & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{$224 \times 224$} \\
+    Train augmentations       & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{RandomResizedCrop (scale $0.5{-}1.0$, bicubic); HFlip $p{=}0.5$; VFlip $p{=}0.2$; rotation $\pm 20^{\circ}$; ColorJitter (brightness/contrast/saturation $=0.2$, hue $=0.03$); RandomGrayscale $p{=}0.05$; CLIP normalisation} \\
+    Validation transform      & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{resize shortest side to $256$, CenterCrop $224 \times 224$, CLIP normalisation} \\
+    Train / val split         & \multicolumn{2}{@{}>{\raggedright\arraybackslash}p{0.74\linewidth}@{}}{stratified per species, $10\%$ to validation, seed $42$, species with $<\!5$ images held in train} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Complete training-configuration specification for the i002 model. The two
+  rows above the horizontal divider differ between the two stages; everything below the divider
+  is identical across stages. Numbers in the ``Total optimisation steps'' and ``Warmup steps''
+  rows correspond to the two-GPU run on the train split of $2{,}391{,}457$ images
+  (Table~\ref{tab:i001_manifest}). The head architecture and loss weights are also discussed
+  qualitatively in \S\ref{sec:bioclip25_010}.}
+  \label{tab:training_config}
+\end{table}
+
+\section{Long-tail Rebalancing: More Data vs.\ Per-Species Capping}
+\label{sec:cap_extra_detail}
+
+The PlantCLEF 2024 single plant corpus is heavily skewed. Of the 7,806 species, the most
+represented twelve carry more than one thousand training images while one hundred forty five
+species carry a single image and four hundred forty five carry between three and five. Vanilla
+shuffled training thus exposes the network to roughly two orders of magnitude more head class
+examples than tail class examples per epoch. Experiments i002 and i003 attack this imbalance
+along two distinct axes, the second building directly on the first.
+
+\textbf{Experiment i002 -- more data, no cap.} Experiment i002 ports the partial unfreeze recipe
+onto the redownloaded i001 manifest, which carries 2,653,781 rows across 7,806 species (against
+1,408,033 rows in the original manifest) with pre-filled genus and family labels for every row.
+No per species cap is applied; the rebalancing here is implicit, coming from the broader
+observation pipeline rather than the tail. The stratified 10\% validation split yields 2,391,457
+training rows and 262,324 validation rows. The downstream effect on validation accuracy is
+substantial: top 5 accuracy on the held out split rises from 0.9214 (010 head only) and 0.9323
+(010 last four blocks) to 0.9505 (i002 head only), 0.9583 (i002 last four blocks), and 0.9615
+(i002 last eight blocks).
+
+\textbf{Experiment i003 -- GBIF tail augmentation with a 500-image cap.} Experiment i003 builds
+directly on i002 by adding GBIF-sourced images for under-represented species and then capping
+every species at five hundred images. We queried the GBIF occurrence API for additional records
+of the 2,020 species that had fewer than one hundred images in the i002 manifest, yielding
+$161{,}686$ candidate images; $13{,}623$ failed a full Python Imaging Library decode (truncated,
+oversized, or non-image files) and were dropped, leaving $148{,}063$ validated GBIF images that
+were merged into the i002 manifest. The combined manifest was then deduplicated by image path and
+capped at five hundred images per species through a seeded random subsample, applied once offline
+at manifest construction time rather than at every epoch. The cap trims the heaviest bins (the
+twelve species above one thousand images and the $2{,}263$ species in the $501$ to $1{,}000$ image
+bin both collapse into the $251$ to $500$ bin) and produces a flatter distribution with
+$2{,}223{,}516$ training rows. No new species are introduced; all $2{,}020$ GBIF-supplemented
+species already exist in the i002 manifest, so the augmentation lifts only the head of the tail,
+not its left edge. The leaderboard outcome of this capped, GBIF-augmented manifest (a public
+Macro F1 of $0.40041$ against $0.41826$ for the uncapped i002 checkpoint) is analysed in
+\S\ref{sec:longtail}, together with the before/after distribution (Figure~\ref{fig:long_tail}).
+
+\section{Seasonal Phenology Prior: Full Method}
+\label{sec:phenology}
+
+The seasonal phenology prior is one of three architecture-orthogonal pivots
+(\S\ref{sec:final_submission}); on the leaderboard it scored below the visual anchor, and its
+empirical result is reported in Section~\ref{sec:experiments}. We retain the full method here as
+a self-contained novelty contribution.
+
+\begin{figure}[!htbp]
+  \centering
+  \resizebox{0.82\linewidth}{!}{\input{figures/phenology_pipeline}}
+  \caption{Inference pipeline for the seasonal phenology submission (Pivot~3, public Macro F1 $0.41346$). Each quadrat is processed at two grid scales ($1.0$ and $0.8$); tiles are screened by an Excess Green (ExG) vegetation filter; the surviving tiles are forwarded through the partially fine-tuned BioCLIP 2.5 ViT-H/14 at two inference resolutions ($224$ and $336$ pixels). Per-tile probabilities are pooled by entropy-weighted Bayesian aggregation, $w_t \propto \exp(-H_t)\cdot\mathrm{ExG}_t$, and the two resolutions are then averaged. A Boltzmann-weighted seasonal phenology prior over the GBIF day-of-year histogram is added in log space at $\beta{=}1.0$, followed by class-prior logit adjustment ($\tau{=}0.25$) and adaptive probability threshold selection ($T{=}0.03$, $k_{\min}{=}2$, $k_{\max}{=}10$). The pipeline differs from the anchor (Figure~\ref{fig:inference_pipeline}) in its multi-scale tiling, ExG screening, and entropy-weighted aggregation; the phenology log-prior is the additional term unique to this submission.}
+  \label{fig:phenology_pipeline}
+\end{figure}
+
+Each test quadrat carries an observation date in its identifier (e.g.\ \texttt{CBN-PdlC-A1-20130807} $\to$ 7 Aug 2013); the visual backbone never sees this. Date is therefore the cleanest source of information that is \emph{information-theoretically orthogonal} to the image-based posterior. We formalise a phenological prior as a circular probability density over day-of-year, estimated nonparametrically from GBIF month-of-observation histograms and combined with the visual posterior multiplicatively in log space.
+
+\paragraph{Formulation.} For a species $s$ observed on day-of-year $d \in \{1,\ldots,365\}$, let $P(s \mid d)$ denote the species' observability density. We define the combined posterior as
+\begin{equation}
+  \log p_{\text{final}}(s \mid I, d) \;=\; \log p_{\text{vis}}(s \mid I) \;+\; \beta \,\log P(s \mid d),
+\end{equation}
+where $p_{\text{vis}}$ is the BioCLIP 2.5 anchor posterior and $\beta$ is a mixing weight: $\beta{=}0$ recovers the unmodified visual posterior; large $\beta$ collapses the prediction toward the seasonal prior alone.
+
+\paragraph{Pdf estimation.} We estimate the per-species pdf nonparametrically from GBIF month-of-observation histograms. The histograms are obtained via a single faceted query per species
+which returns a 12-bin month histogram in one request. We then build a 365-day pdf via circular Gaussian smoothing with $\sigma = 18$\,d centred on each month's mid-point, and mix in a small uniform mass to prevent hard zeros in tail months:
+\begin{equation}
+  P(s \mid d) \;=\; (1{-}\epsilon)\, \tfrac{1}{Z_s}\!\sum_{m=1}^{12} c_{s,m}\,\mathcal{N}_{\text{circ}}\!\left(d \mid \mu_m, \sigma\right) \;+\; \frac{\epsilon}{365},
+\end{equation}
+with $\epsilon{=}0.05$ and $c_{s,m}$ the GBIF count for species $s$ in month $m$.
+
+\paragraph{Coverage.} We fetched histograms for all 7{,}796 species with valid GBIF identifiers (10 of 7{,}806 lack a GBIF mapping). Two passes were required: a first pass at 12 worker threads (~3 req/s, ~21\% rate-limit drops), then a retry pass at 4 worker threads (GBIF aggressively throttled a saturated client). Final coverage: \textbf{6{,}957 / 7{,}806 species (89.1\%)}; the remaining 849 species fall back to a uniform DOY pdf and contribute no phenological signal.
+
+\paragraph{Submission pipeline.} Beyond the phenology log-prior itself, the seasonal phenology submission departs from the anchor inference scaffold (Figure~\ref{fig:inference_pipeline}) in three ways, illustrated architecturally in Figure~\ref{fig:phenology_pipeline} and visually in Figure~\ref{fig:phenology_illustration}. First, an Excess Green index $\mathrm{ExG}_t = 2G_t - R_t - B_t$ is computed per tile and tiles with fewer than $15\%$ green pixels are dropped before the encoder forward pass, removing tiles that contain no vegetation. Second, the surviving tiles are aggregated with a per-tile Bayesian weight $w_t \propto \exp(-H_t)\cdot\mathrm{ExG}_t$, where $H_t$ is the predictive entropy of tile $t$, yielding a softmax-weighted mean rather than the anchor's unweighted mean. Third, the input quadrat is processed at two grid scales ($1.0$ and $0.8$) in addition to the two inference resolutions ($224$ and $336$ pixels), with all per-tile distributions pooled into a single posterior before the phenology prior is added. Logit adjustment ($\tau{=}0.25$) and adaptive threshold selection ($T{=}0.03$) then follow as in the anchor.
+
+\paragraph{Empirical result.} On the PlantCLEF 2026 leaderboard, the phenology prior at $\beta{=}1.0$, $T{=}0.03$ produced a Macro-F1 of \textbf{0.41346} versus the unaugmented BioCLIP 2.5 anchor of 0.41826 ($\Delta = -0.0048$). We swept $\beta \in \{0.25, 0.5, 1.0, 1.5, 2.0\}$ at three probability thresholds; the natural Bayesian operating point ($\beta{=}1.0$, no temperature scaling, $T{=}0.03$, $\tau{=}0.25$ matching the anchor) flips $12.8\%$ of top-one picks at mean $k{=}3.24$. The headline result is summarised in \S\ref{sec:final_results}.
+
+\paragraph{Why the gain is negligible.} The day-of-year distribution of the test set is heavily summer skewed (Jul $=$ 517, Aug $=$ 668, Apr--Jun $=$ 607 of 2{,}105 quadrats; Figure~\ref{fig:test_doy_wheel}), so a date-conditioned prior could only help in the densely sampled months. Three concurrent factors plausibly explain the near-zero delta: \textit{(i)} GBIF observation effort is itself summer biased, diluting the discriminative season signal; \textit{(ii)} the BioCLIP 2.5 backbone trained on dated images already encodes seasonal phenotype implicitly via leaf / flower / fruit state; \textit{(iii)} $11\%$ of species fall back to a uniform pdf precisely on the long tail where the visual model is most uncertain, so phenology cannot break ties where it would be most useful.
+
+\begin{figure}[!htbp]
+  \centering
+  \resizebox{0.82\linewidth}{!}{\input{figures/test_doy_wheel}}
+  \caption{Calendar wheel of the PlantCLEF~2026 test set by month of observation (2{,}105 quadrats total). Radial bar length is proportional to the count for that month. The July (517) and August (668) wedges are reported exactly in the data; the April--June total of 607 is split uniformly across the three months for the figure, as is the residual 313 across the remaining seven months. The visually obvious summer over-representation motivates the seasonal phenology pivot: a date-conditioned prior could only ever help in the densely-sampled months, and conversely should not be expected to lift Macro F1 on the sparse winter tail.}
+  \label{fig:test_doy_wheel}
+\end{figure}
+
+\begin{figure}[!ht]
+  \centering
+  \resizebox{\linewidth}{!}{\input{figures/phenology_illustration}}
+  \caption{Data flowing through the seasonal phenology submission, stage by stage. \textit{Multi-scale tiling:} the input quadrat is partitioned into a $4{\times}4$ grid at the native scale (solid lines) and re-partitioned at scale $0.8$ (dashed inner rectangle), giving two tile sets. \textit{ExG filter:} each tile's Excess Green index $\mathrm{ExG}_t = 2G_t - R_t - B_t$ is computed and tiles with fewer than $15\%$ green pixels are dropped (greyed out with a cross). \textit{Entropy weights:} the surviving tiles are weighted by $w_t \propto \exp(-H_t)\cdot\mathrm{ExG}_t$, where bar height encodes the weight; confident, vegetation-rich tiles dominate the softmax-weighted mean. \textit{Phenology curve:} the per-species observability density $P(s\mid d)$, smoothed from the GBIF month-of-observation histogram, is multiplied into the posterior in log space at $\beta{=}1.0$, where the dashed red line marks the quadrat's observation date $d$. \textit{Species selection:} after class-prior logit adjustment, species whose probability exceeds $T{=}0.03$ are emitted; the bottom bar (greyed) falls below threshold and is rejected.}
+  \label{fig:phenology_illustration}
+\end{figure}
+
+\section{Considered Approaches Not Implemented}
+\label{sec:not_implemented}
+
+During the project we scoped a number of additional directions that did not make it into the
+final system, either because the engineering cost outweighed the expected gain on this
+benchmark or because preliminary work indicated negative or noise-floor deltas. We list them
+briefly here for completeness, without method-level detail. Gated multi-backbone fusion with a
+learned per-image gating network over BioCLIP 2.5, DINOv3, and ConvNeXt-V2-L was prototyped but
+never completed end-to-end; an offline-cached high-resolution knowledge distillation pipeline with
+two SWA-averaged frozen teachers was specified but not trained; a graph neural network head over a
+blended ecological and phylogenetic adjacency matrix was designed and partially implemented; Markov
+random field reasoning over quadrat tiles via loopy belief propagation was scoped;
+retrieval-augmented classification using per-species feature prototypes was scoped for the extreme
+tail; test-time training via self-supervised rotation prediction was scoped; conformal prediction
+for set-valued species output was scoped; and Frank-Wolfe optimisation with an island-biogeography
+count prior was scoped as an alternative to the threshold-based selection rule. None of these are
+evaluated in this paper.
+
+\section{Additional Inference Sweeps}
+\label{sec:appendix_extra_sweeps}
+
+This section holds the exhaustive inference-sweep rows that are summarised but not tabulated in
+\S\ref{sec:infer_ablations}. All numbers are public Macro F1.
+
+\textbf{Gap and relative-threshold selection rules.} Holding $\tau{=}0.25$ fixed on the i002
+last-four-blocks single-resolution checkpoint, the gap rule (emit while consecutive species differ
+by less than a fraction of the top probability) and the relative-threshold rule (emit every $s$
+with $p_s$ within a fraction of the top) both underperform the probability-threshold anchor
+($0.40590$) by between $0.06$ and $0.10$ Macro F1 (Table~\ref{tab:select_rule_extra}).
+
+\begin{table}[ht]
+  \centering
+  \small
+  \begin{tabular}{llc}
+    \toprule
+    Rule & Value & Public Macro F1 \\
+    \midrule
+    gap                                  & $0.40$    & 0.33199 \\
+    gap                                  & $0.50$    & 0.33664 \\
+    gap                                  & $0.60$    & 0.34996 \\
+    \midrule
+    relative threshold                   & $0.15$    & 0.31348 \\
+    relative threshold                   & $0.20$    & 0.31704 \\
+    relative threshold                   & $0.25$    & 0.31823 \\
+    relative threshold                   & $0.30$    & 0.33623 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Gap and relative-threshold selection rules at $\tau{=}0.25$ on the i002 last-four-blocks single-resolution checkpoint. Both families underperform the probability-threshold anchor ($T{=}0.03$, $0.40590$; see Table~\ref{tab:select_rule}) by between $0.06$ and $0.10$ Macro F1.}
+  \label{tab:select_rule_extra}
+\end{table}
+
+\textbf{Noisy-or aggregation mixture.} On the earlier 010 four-block anchor we additionally swept
+softmax-mean against a mixture $\alpha \cdot \text{softmax\_mean} + (1{-}\alpha) \cdot
+\text{noisy\_or}$ across $\alpha \in \{0.25, 0.50, 0.75, 1.0\}$. All variants land within $0.001$
+Macro F1 of the softmax-mean anchor at $0.38333$, with the second-best, $\alpha{=}0.75$, at
+$0.38278$, so on that earlier posterior the choice of aggregator is essentially flat. On the
+fine-tuned i002 checkpoint, by contrast, softmax-mean pulls clearly ahead of max
+(\S\ref{sec:tile_aggregation}).

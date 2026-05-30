@@ -1,0 +1,83 @@
+% Aggregation results figure: two-stage story.
+%   Left  panel : experiment 010 head-only sweep (mean vs max vs softmax-mean),
+%                 matched grid_4x4 ts448 ov0.5 -- the clean, same-checkpoint
+%                 comparison that justifies dropping plain mean.
+%   Right panel : final i002 four-block checkpoint (max vs softmax-mean, plus
+%                 softmax-mean + logit adjustment). Plain mean was NOT submitted
+%                 here, so it is intentionally absent from the right panel.
+%
+% Numbers: docs/submissions_archive/submission_manifest.csv (public + private
+% Macro F1). Each bar is the best-public / best-private selection for that mode.
+%
+% Required preamble (already in report/preamble.tex):
+%   \usepackage{pgfplots}\pgfplotsset{compat=1.18}
+%   \usepgfplotslibrary{groupplots}
+%
+% NB: ybar / bar width are set per-axis (inside each \nextgroupplot), not in the
+% shared groupplot options, because this pgfplots version does not recognise
+% bar width in the top-level groupplot key list.
+%
+% Include in a figure* float (see sections/experiments.tex).
+
+\begin{tikzpicture}
+  \begin{groupplot}[
+      group style={group size=2 by 1, horizontal sep=1.5cm},
+      width=0.5\linewidth, height=6.0cm,
+      enlarge x limits=0.25,
+      ymin=0.20, ymax=0.455,
+      ytick={0.20,0.25,0.30,0.35,0.40},
+      ylabel={Macro F1},
+      ylabel style={font=\small},
+      yticklabel style={font=\scriptsize},
+      tick align=outside, tickpos=left,
+      grid=major, grid style={dashed,gray!20},
+      legend style={
+        font=\scriptsize, draw=black!30,
+        at={(0.03,0.97)}, anchor=north west,
+        legend columns=1, row sep=1pt,
+      },
+      legend cell align=left,
+      every axis title/.append style={font=\small, yshift=-2pt},
+    ]
+
+    % ---- Panel 1: experiment 010 head-only, grid_4x4 ts448 ov0.5 ----
+    \nextgroupplot[
+        ybar, bar width=10pt,
+        title={Exp.\ 010 (head-only)},
+        symbolic x coords={Mean, Max, Soft.-mean},
+        xtick=data,
+        xticklabel style={font=\scriptsize},
+        nodes near coords,
+        nodes near coords style={
+          font=\tiny, rotate=90, anchor=west,
+          /pgf/number format/.cd, fixed, fixed zerofill, precision=3, /tikz/.cd
+        },
+        every node near coord/.append style={inner sep=1.5pt},
+      ]
+      \addplot+[fill=blue!55!black, draw=blue!55!black]
+        coordinates {(Mean,0.25784) (Max,0.33830) (Soft.-mean,0.34042)};
+      \addplot+[fill=gray!45, draw=gray!55!black]
+        coordinates {(Mean,0.32028) (Max,0.34039) (Soft.-mean,0.37642)};
+      \legend{Public, Private}
+
+    % ---- Panel 2: final i002 four-block checkpoint ----
+    \nextgroupplot[
+        ybar, bar width=10pt,
+        title={Final i002 (four-block)},
+        symbolic x coords={Max, Soft.-mean, {Soft.-mean+LA}},
+        xtick=data,
+        xticklabel style={font=\scriptsize, align=center},
+        nodes near coords,
+        nodes near coords style={
+          font=\tiny, rotate=90, anchor=west,
+          /pgf/number format/.cd, fixed, fixed zerofill, precision=3, /tikz/.cd
+        },
+        every node near coord/.append style={inner sep=1.5pt},
+      ]
+      \addplot+[fill=blue!55!black, draw=blue!55!black]
+        coordinates {(Max,0.37509) (Soft.-mean,0.41165) ({Soft.-mean+LA},0.40590)};
+      \addplot+[fill=gray!45, draw=gray!55!black]
+        coordinates {(Max,0.35724) (Soft.-mean,0.38883) ({Soft.-mean+LA},0.40600)};
+
+  \end{groupplot}
+\end{tikzpicture}

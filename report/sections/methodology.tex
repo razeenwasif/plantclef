@@ -1,0 +1,221 @@
+\section{Method}
+\label{sec:method}
+
+We describe the final system top-down, as it would be reproduced, rather than in the order
+we discovered it; the chronological development trace of every direction we explored is given
+in Appendix~\ref{app:experiment_summary}. The system has three parts. First, a training corpus
+of single-plant images carrying taxonomic labels (\S\ref{sec:cap_extra}). Second, a partial
+fine-tune of BioCLIP~2.5 ViT-H/14 that adapts only the last four transformer blocks and
+attaches auxiliary taxonomy heads, preserving the Tree-of-Life prior that makes the backbone
+valuable on biological data (\S\ref{sec:backbone}--\S\ref{sec:bioclip25_010}). Third, a
+test-time pipeline that tiles each quadrat, pools the per-tile votes by softmax mean,
+calibrates with class-prior logit adjustment, and selects an adaptive number of species
+(\S\ref{sec:adaptive_inference}--\S\ref{sec:calibration}). We close with a single canonical
+statement of the final configuration (\S\ref{sec:final_submission}). Throughout this
+section we define \emph{what} the system is and defer all leaderboard numbers to
+Section~\ref{sec:experiments}.
+
+\subsection{Data and Label Construction}
+\label{sec:cap_extra}
+
+The training data are single-plant images from the PlantCLEF~2024 corpus, each contributed
+through the Pl@ntNet citizen-science pipeline and carrying one species label together with its
+Linnaean ancestry (genus, family, and, where available, order and class). The distribution is
+heavily long-tailed: a small number of common species exceed one thousand images while hundreds
+of rare species carry only a handful, so vanilla shuffled training exposes the network to
+roughly two orders of magnitude more head-class than tail-class examples per epoch.
+
+Our final model trains on an enlarged and cleaned manifest. The original PlantCLEF~2024 metadata
+(merged with a GBIF taxonomy lookup) supplies the first fine-tune; a subsequent data rebuild
+(experiment~i001) re-downloaded the corpus, supplemented it with a research-grade iNaturalist
+pull, deduplicated, and pre-filled genus and family labels for every row, yielding roughly
+$2.65$\,million images across $7{,}806$ species (Table~\ref{tab:i001_manifest}). Our final
+model (experiment~i002) trains on this larger manifest \emph{without} any per-species cap. We
+also explored an explicitly rebalanced variant (experiment~i003) that augments the tail with
+extra validated images and caps every species at five hundred images; its leaderboard outcome,
+which did not improve on the uncapped manifest, is analysed in Section~\ref{sec:longtail}. We
+therefore treat ``more clean data, no cap'' as a deliberate design choice for the final system
+rather than as a controlled study of rebalancing.
+
+\begin{table}[ht]
+  \centering
+  \small
+  \setlength{\tabcolsep}{6pt}
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    Source / Split & Images & Observations & Species & Genera \\
+    \midrule
+    PlantCLEF~2024 (Pl@ntNet)     & $1{,}408{,}033$ & $1{,}151{,}904$ & $7{,}806$ & $1{,}446$ \\
+    iNaturalist (research-grade)  & $1{,}245{,}748$ & $1{,}245{,}085$ & $5{,}037$ & $1{,}254$ \\
+    \midrule
+    \textbf{i001 manifest (union)}    & $\mathbf{2{,}653{,}781}$ & --- & $\mathbf{7{,}806}$ & $\mathbf{1{,}446}$ \\
+    \hspace{1em}Train (stratified 90\%) & $2{,}391{,}457$ & $1{,}121{,}447$ & $7{,}806$ & $1{,}446$ \\
+    \hspace{1em}Val (stratified 10\%)   & $262{,}324$     & $123{,}768$     & $7{,}309$ & $1{,}429$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Composition of the i001 training manifest used by the i002 model. The PlantCLEF~2024 row reproduces the dataset overview from~\cite{joly2024overview}; the iNaturalist row reflects the research-grade pull we de-duplicated and image-verified before adding to the manifest. All iNaturalist species are a subset of the PlantCLEF~2024 taxonomy, so the union species and genus counts match the PlantCLEF~2024 row; iNaturalist therefore covers $5{,}037$ of the $7{,}806$ classes (the most populous head) rather than extending the long tail. The Train / Val rows are the deterministic stratified split applied at training time (10\% per species, seed $42$, species with fewer than five images held entirely in Train); the Val row drops to $7{,}309$ species because $497$ rare species fall below the five-image threshold and remain Train-only. Observations are reported only on the union and split rows where the field is well defined for iNaturalist sources, and they are omitted on the union total because the field is undefined for PlantCLEF~2024 rows in our merged manifest.}
+  \label{tab:i001_manifest}
+\end{table}
+
+\subsection{BioCLIP 2.5 Fine-tuning}
+\label{sec:backbone}
+
+BioCLIP~\cite{stevens2024bioclip} is a contrastive vision-language model whose pretraining on
+TreeOfLife-10M aligns its feature space with the Linnaean taxonomy, which is precisely the prior
+that makes it valuable for biological classification. We adapt the BioCLIP~2.5 ViT-H/14 image
+encoder by supervised fine-tuning, but only partially: rather than updating the full backbone,
+we freeze the lower twenty-eight transformer blocks and unfreeze only the last four blocks
+together with the final layer norm and projection layer. This narrow trainable surface is enough
+to adapt the encoder to the single-plant distribution while preserving the broader biological
+prior, and it is more resilient to optimiser noise on a long-tailed training set than full
+fine-tuning. The number of unfrozen blocks is itself a sharp design variable; we report the
+ablation that locates its optimum in Section~\ref{sec:experiments}.
+
+Training is staged in two phases. An initial ten epochs of head-only training on the enlarged
+manifest with the backbone fully frozen initialises the per-head MLPs of
+\S\ref{sec:bioclip25_010}; a further ten epochs with the last four transformer blocks unfrozen
+then produce the final i002 checkpoint, resuming the model weights only. Both stages train in
+bfloat16 across two RTX~5090 GPUs under cross entropy with linear warmup and cosine decay; the
+complete hyperparameter specification (learning rates, batch sizes, gradient accumulation,
+augmentations, image transforms, and the validation split) is given in
+Appendix~\ref{sec:training_config}, Table~\ref{tab:training_config}.
+
+\subsection{Taxonomy-aware Heads}
+\label{sec:bioclip25_010}
+
+On top of the encoder we attach a small head that predicts species jointly with coarser
+taxonomic levels, so the auxiliary taxonomy losses act as a structural regulariser. Each head is
+built from the same template (layer normalisation of the $1{,}024$-dimensional CLS embedding, a
+linear projection to a $1{,}024$-dimensional hidden representation, a GELU non-linearity, and
+dropout at rate $0.2$), but the two fine-tunes we report wire it differently.
+
+\textbf{Shared trunk (experiment~010).} Our first strong fine-tune uses a single \emph{shared}
+multi-layer perceptron whose one hidden vector is read by every taxonomic head, so the auxiliary
+losses regularise the exact representation the species head consumes. It exposes five heads, with
+output dimensions $7{,}806$ (species), $1{,}446$ (genus), $181$ (family), $61$ (order), and $6$
+(class).
+
+\textbf{Per-head MLPs (experiment~i002).} Experiment~i002 instead gives each head its own
+\emph{independent} multi-layer perceptron of the same structure, decoupling the per-task
+gradients above the backbone. Because the redownloaded i001 manifest carries species, genus, and
+family columns but no order or class columns, it retains three per-head branches and drops the
+two coarsest levels.
+
+The training objective is a weighted joint cross entropy
+\begin{equation}
+  \mathcal{L} \;=\; \mathcal{L}_{\text{species}} \;+\; \!\!\!\!\sum_{l \in L}\!\!\!\! w_l\,\mathcal{L}_l,
+\end{equation}
+where the species term carries an implicit weight of one, $L = \{g,f,o,c\}$ for the shared-trunk
+fine-tune and $L = \{g,f\}$ for the i002 per-head model, and the auxiliary weights are
+$w_g{=}0.30$, $w_f{=}0.15$, $w_o{=}0.05$, $w_c{=}0.02$. These are fixed, hand-set constants
+rather than learned or entropy-derived weights; coarser levels are deliberately down-weighted so
+that, when present, the order and class heads act primarily as regularisation rather than driving
+the encoder. The i002 per-head model uses only $w_g{=}0.30$ and $w_f{=}0.15$. Missing taxonomy
+labels are encoded as $-1$ and masked out of the auxiliary loss.
+
+We stress that the shared-trunk and per-head designs differ in several other respects at the same
+time (training data, schedule, number of unfrozen blocks, and head count), so we do \emph{not}
+run a controlled comparison that varies only the head wiring, and we make no claim that the
+per-head MLP, or the taxonomy supervision, caused any performance gain. We report the head wiring
+as a deliberate design choice and analyse the resulting feature spaces descriptively in
+Section~\ref{sec:head_repr}.
+
+\begin{figure*}[t]
+  \centering
+  \resizebox{0.95\linewidth}{!}{\input{figures/head_design_schematic}}
+  \caption{Head designs of the two supervised fine tunes. Experiment~010 (left) uses a single shared MLP (layer normalisation, a linear projection of the $1{,}024$-d embedding, GELU, and dropout) whose hidden vector feeds five linear heads (species/genus/family/order/class); the auxiliary taxonomy losses back propagate through the shared trunk. Experiment~i002 (right) uses three independent per head MLPs (species/genus/family), so the auxiliary gradients do not pass through the species MLP. Both share the partially unfrozen BioCLIP~2.5 backbone (last blocks plus the final layer norm and projection). The diagram shows the design difference only: the two experiments are not a controlled ablation, since they also differ in training data, schedule, unfrozen blocks, and head count.}
+  \label{fig:head_design}
+\end{figure*}
+
+\subsection{Tiled Inference}
+\label{sec:adaptive_inference}
+
+The classifier is trained on single-plant images, but each test quadrat is a dense, multi-species
+scene in which plants overlap, occlude one another, and appear at varying scales. Passing a whole
+quadrat through an encoder trained on isolated specimens therefore mixes many species into one
+embedding. We instead partition each quadrat into a non-overlapping
+$4\times4$ grid of sixteen tiles, each $1/4$ of the quadrat in width and height (and $1/16$ of
+its area), so that most tiles contain only one or a few species, closer to the training
+distribution. Each tile is forwarded through the encoder
+at two resolutions, the encoder's native $224$ pixels and $336$ pixels (the ViT-H/14 backbone
+tolerates the $1.5\times$ stretch via bicubic positional-embedding interpolation), giving a
+per-tile species distribution that the next stage pools.
+
+\subsection{Tile Aggregation and Selection}
+\label{sec:tile_agg_method}
+
+The sixteen per-tile predictions must be pooled into one image-level score vector before we
+select the species to emit. We implemented three pooling rules. \emph{Mean} averages the per-tile
+logits; it is robust to a single noisy tile but dilutes a species that is strong in only one or
+two tiles among the many background tiles where it is absent. \emph{Max} keeps each species'
+single strongest tile; it suits a species confined to one tile but is fragile, since one
+over-confident background tile can promote a species across the whole image. \emph{Softmax-mean}
+turns each tile into a normalised probability vote and averages those votes, so no single tile can
+dominate while evidence still accumulates across tiles. The final system uses softmax-mean. Plain mean was explored on an earlier head-only checkpoint
+(experiment~010) and dropped; it was not re-tested on the final model. The two-stage comparison
+behind this choice, with the same-checkpoint caveat, is reported in
+Section~\ref{sec:tile_aggregation}.
+
+After aggregation we replace standard top-$k$ selection with an adaptive thresholded rule: we emit
+every species whose probability exceeds a fixed threshold $T$, subject to a floor of $k_{\min}{=}2$
+and a ceiling of $k_{\max}{=}10$ species per quadrat. This matches the test set's empirical
+cardinality of roughly two to three species per quadrat without committing to a single $k$. The
+operating point ($T{=}0.03$) and its comparison against fixed top-$k$, gap, and relative-threshold
+rules are reported in Section~\ref{sec:experiments}.
+
+\subsection{Calibration and Ensembling}
+\label{sec:calibration}
+
+Two further ingredients complete the inference recipe. First, to counteract the long-tail bias of
+the species prior we apply class-prior logit adjustment~\cite{menon2021longtail},
+$\ell_s' = \ell_s - \tau \log \tilde{\pi}_s$ with $\tau{=}0.25$, where $\tilde{\pi}_s$ is the
+Laplace-smoothed training prior for species $s$; this requires larger margins for common species
+and smaller margins for rare ones. Second, the per-tile distributions from the $224$- and
+$336$-pixel passes are averaged in probability space before selection, a single-checkpoint
+resolution ensemble that recovers fine-scale evidence the native resolution drops. Both knobs are
+swept on the leaderboard in Section~\ref{sec:experiments}; here we fix the values used by the
+final system.
+
+\subsection{Final System}
+\label{sec:final_submission}
+
+Our final system is a single BioCLIP~2.5 ViT-H/14 backbone trained under the two-stage
+schedule of \S\ref{sec:backbone} on the enlarged i001 manifest. Only the last four transformer
+blocks (plus the final layer norm and projection) are unfrozen in the second stage, and both
+stages share the joint species/genus/family cross-entropy loss of \S\ref{sec:bioclip25_010}. At
+inference (Figure~\ref{fig:inference_pipeline}), each quadrat is
+partitioned into a non-overlapping $4\times4$ grid of sixteen tiles; every tile is forwarded
+through the encoder at both $224$ and $336$ pixels. Per-tile softmax probabilities are aggregated
+by species-wise mean across the sixteen tiles, the two resolutions are averaged, class-prior logit
+adjustment ($\tau{=}0.25$) is applied, and every species whose post-adjusted probability exceeds
+$T{=}0.03$ is emitted, subject to $k_{\min}{=}2$ and $k_{\max}{=}10$. The two-resolution average is a single-checkpoint ensemble of the i002 model, not a
+multi-checkpoint ensemble; it is applied at inference time, not as part of the training-time
+pipeline. This configuration is our
+headline submission, scoring $0.41826$ public and $0.40283$ private Macro~F1 on the PlantCLEF~2026
+leaderboard; the experiments that justify each component follow in Section~\ref{sec:experiments}.
+
+Beyond this anchor we submitted three architecture-orthogonal pivots that aimed to add information
+the visual encoder cannot read from a single tile: a triple-backbone classifier retrained on
+frozen BioCLIP~2.5, DINOv3, and ConvNeXt-V2-L features; a genus and family co-occurrence rerank;
+and a seasonal phenology prior built from GBIF month-of-observation histograms (full method in
+Appendix~\ref{sec:phenology}). None improved over the visual anchor; all three are reported in
+Section~\ref{sec:experiments}.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.95\linewidth]{figures/inference_pipeline}
+  \caption{Inference pipeline for the ANU PlantCLEF 2026 submission
+(public Macro F1 $0.418265$). Each quadrat is partitioned into a
+non-overlapping $4{\times}4$ grid of sixteen $448$-pixel tiles and
+forwarded through the partially fine-tuned BioCLIP~2.5 ViT-H/14
+(lower 28 transformer blocks frozen; last 4 plus LN and projection
+unfrozen) at two inference resolutions, $224$ and $336$ pixels.
+The encoder produces outputs at three taxonomic levels (family,
+genus, species); only the species head is used at inference time.
+Per-tile softmax probabilities from the species head are averaged
+across the 16 tiles and across the two resolutions, then class-prior
+logit adjustment ($\tau{=}0.25$) down-weights common species before
+an adaptive probability threshold ($T{=}0.03$, $k_{\min}{=}2$,
+$k_{\max}{=}10$) selects the output species set.}
+  \label{fig:inference_pipeline}
+\end{figure*}

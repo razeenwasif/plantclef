@@ -1,0 +1,16 @@
+[package]
+name = "train_resizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
+fast_image_resize = "2.7"
+rayon = "1.7"
+walkdir = "2.3"
+indicatif = { version = "0.17", features = ["rayon"] }
+anyhow = "1.0"
+
+[lib]
+name = "train_resizer"
+crate-type = ["staticlib"]

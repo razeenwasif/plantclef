@@ -1,0 +1,17 @@
+[package]
+name = "fused_resizer_packer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Metadata and Parallelism
+csv = "1.2"
+rayon = "1.7"
+indicatif = "0.17"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tar = "0.4"
+
+# Image Processing (Added for Stream-Resizing)
+image = { version = "0.24", default-features = false, features = ["jpeg", "png"] }
+fast_image_resize = "2.7"

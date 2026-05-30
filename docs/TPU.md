@@ -1,19 +1,19 @@
-# ORACLE on TPU
+# PLANTCLEF on TPU
 
-ORACLE's training pipeline is now dual-accelerator: the same `oracle.py` CLI drives both NVIDIA CUDA clusters and Google TPU pods. Switch with `--mode {cuda,tpu,auto}` (or set `ORACLE_MODE`).
+PLANTCLEF's training pipeline is now dual-accelerator: the same `plantclef.py` CLI drives both NVIDIA CUDA clusters and Google TPU pods. Switch with `--mode {cuda,tpu,auto}` (or set `CLUSTER_MODE`).
 
 ```
 # CUDA cluster (unchanged from the historical pipeline)
-torchrun ./oracle.py train --phase p2a --role sprint --mode cuda
+torchrun ./plantclef.py train --phase p2a --role sprint --mode cuda
 
 # TPU VM (single host, e.g. v3-8 / v4-8)
-./oracle.py train --phase p2a --role sprint --mode tpu
+./plantclef.py train --phase p2a --role sprint --mode tpu
 
 # Auto-detect (preferred default; reads TPU_NAME, falls back to nvidia-smi)
-./oracle.py train --phase p2a --role sprint --mode auto
+./plantclef.py train --phase p2a --role sprint --mode auto
 ```
 
-The CLI emits `ORACLE_MODE` to `launch_oracle.sh`, which branches on the value to set the right environment variables and choose `torchrun` (CUDA) vs `python3 + xmp.spawn` (TPU).
+The CLI emits `CLUSTER_MODE` to `launch.sh`, which branches on the value to set the right environment variables and choose `torchrun` (CUDA) vs `python3 + xmp.spawn` (TPU).
 
 ---
 
@@ -37,16 +37,16 @@ pip install torch~=2.4.0 torch_xla~=2.4.0 \
 
 | Layer | File | Behaviour |
 |---|---|---|
-| **CLI flag** | `oracle.py` | `train`, `cache`, `infer` subparsers gained `--mode {cuda,tpu,auto}`. The chosen mode flows to `launch_oracle.sh` via the `ORACLE_MODE` env var. |
-| **Launcher dispatch** | `src/setup/launch_oracle.sh` | Branches on `$ORACLE_MODE`. CUDA path: keeps the full NCCL / Blackwell env + `torchrun --nproc_per_node`. TPU path: sets `PJRT_DEVICE=TPU`, `XLA_USE_BF16=1`, skips NCCL env, and launches `python3 -m <entry>` once per host. |
+| **CLI flag** | `plantclef.py` | `train`, `cache`, `infer` subparsers gained `--mode {cuda,tpu,auto}`. The chosen mode flows to `launch.sh` via the `CLUSTER_MODE` env var. |
+| **Launcher dispatch** | `src/setup/launch.sh` | Branches on `$CLUSTER_MODE`. CUDA path: keeps the full NCCL / Blackwell env + `torchrun --nproc_per_node`. TPU path: sets `PJRT_DEVICE=TPU`, `XLA_USE_BF16=1`, skips NCCL env, and launches `python3 -m <entry>` once per host. |
 | **Accelerator abstraction** | `src/training/accelerator.py` (new) | `make_accelerator(mode)` returns `CudaAccelerator`, `TpuAccelerator`, or `CpuAccelerator`. Single interface: `device`, `autocast()`, `empty_cache()`, `synchronize()`, `mark_step()`, `optimizer_step()`, `wrap_loader()`, `init_distributed()`. |
 | **Trainer init** | `src/training/trainer.py` | Replaced direct `torch.cuda.set_device(local_rank)` + `init_process_group(nccl)` with `make_accelerator(...).init_distributed()`. Same observable behaviour on CUDA; XLA backend on TPU. |
 | **Training loops** | `src/training/loops.py` | All `torch.amp.autocast('cuda', ...)` → `accelerator().autocast(...)`. All `torch.cuda.empty_cache()` → `accelerator().empty_cache()`. Added `accelerator().mark_step()` after each optimizer step (no-op on CUDA, flushes the XLA graph on TPU). `optimizer.step()` → `accelerator().optimizer_step(optimizer)` (CUDA: identical; TPU: `xm.optimizer_step`, which folds in cross-replica all-reduce). |
-| **Memory utils** | `src/training/utils.py` | All `vram_*` / `oracle_*_scavenge` helpers route through the accelerator. On TPU they're no-ops; XLA's runtime manages HBM. |
+| **Memory utils** | `src/training/utils.py` | All `vram_*` / `plantclef_*_scavenge` helpers route through the accelerator. On TPU they're no-ops; XLA's runtime manages HBM. |
 | **Cache builder** | `src/training/cache.py` | Same swaps as loops.py. |
 | **Data backend selector** | `src/data/dataloader.py` | New `get_loaders(...)` factory routes to DALI on CUDA and to WebDataset on TPU. Existing `get_dali_loaders` stays exported for CUDA callers; raises an explicit error if anyone tries to use it on a TPU host. |
 | **WebDataset loader** | `src/data/wds_loader.py` (new) | Iterates `.tar` shards produced by `shard_manager.py`. Decode-resize-flip-normalise pipeline mirrors the DALI ops; output shape is `[{'data': Tensor, 'label': Tensor}]` so the training loop is mode-agnostic. |
-| **CUDA-only preprocessor guard** | `src/data/preprocess.py` | The blur-audit pipeline (DALI + cuDF) now fails fast with a clear message if imported under `ORACLE_MODE=tpu`. |
+| **CUDA-only preprocessor guard** | `src/data/preprocess.py` | The blur-audit pipeline (DALI + cuDF) now fails fast with a clear message if imported under `CLUSTER_MODE=tpu`. |
 
 ---
 
@@ -58,7 +58,7 @@ pip install torch~=2.4.0 torch_xla~=2.4.0 \
 ## What's NOT yet tested
 
 - **TPU path on actual hardware.** The TPU implementation is shaped against the `torch_xla` 2.x API as documented but has not been validated against a live TPU VM. Expect 1–2 small fixups when you first run it (see Troubleshooting).
-- **Multi-host TPU pods** (e.g. v4-32). Single-host TPU VMs (v3-8 / v4-8 / v5e-8) should work; for pod slices you need `gcloud compute tpus tpu-vm ssh ... --worker=all -- bash launch_oracle.sh ...` to fan out — `launch_oracle.sh` handles per-host launch but does not orchestrate the fan-out itself.
+- **Multi-host TPU pods** (e.g. v4-32). Single-host TPU VMs (v3-8 / v4-8 / v5e-8) should work; for pod slices you need `gcloud compute tpus tpu-vm ssh ... --worker=all -- bash launch.sh ...` to fan out — `launch.sh` handles per-host launch but does not orchestrate the fan-out itself.
 
 ---
 
@@ -120,12 +120,12 @@ XLA_IR_DEBUG / XLA_HLO_DEBUG  # set to 1 for graph dumps when debugging
 Cluster-shape overrides (both modes):
 
 ```
-ORACLE_MODE              # cuda | tpu | auto (set by oracle.py --mode)
-ORACLE_GPUS              # override detected CUDA device count
-ORACLE_TPU_CORES         # override detected TPU core count (default 8)
-ORACLE_NNODES            # multi-node count (CUDA)
-ORACLE_NODE_RANK         # this host's rank (CUDA multi-node)
-ORACLE_MASTER_IP / ORACLE_MASTER_PORT
+CLUSTER_MODE              # cuda | tpu | auto (set by plantclef.py --mode)
+CLUSTER_GPUS              # override detected CUDA device count
+CLUSTER_TPU_CORES         # override detected TPU core count (default 8)
+CLUSTER_NNODES            # multi-node count (CUDA)
+CLUSTER_NODE_RANK         # this host's rank (CUDA multi-node)
+CLUSTER_MASTER_IP / CLUSTER_MASTER_PORT
 ```
 
 ---
@@ -159,8 +159,8 @@ By design — that module is CUDA-only data prep. Run blur-audit / dataset clean
 
 | Command | Effect |
 |---|---|
-| `./oracle.py train --phase p2a --role sprint --mode cuda` | CUDA pipeline (default behaviour preserved). |
-| `./oracle.py train --phase p2a --role sprint --mode tpu` | TPU pipeline (single-host). |
-| `./oracle.py train --phase p2a --role sprint --mode auto` | Detect: TPU if `TPU_NAME` is set, else CUDA if `nvidia-smi` works. |
-| `ORACLE_MODE=tpu ./src/setup/launch_oracle.sh p2a sprint --config configs/p2a_warmup.yaml` | Direct launcher invocation (bypasses oracle.py). |
-| `ORACLE_TPU_CORES=4 ./oracle.py train --phase p2a --role sprint --mode tpu` | Override TPU core count (e.g. v5e-4). |
+| `./plantclef.py train --phase p2a --role sprint --mode cuda` | CUDA pipeline (default behaviour preserved). |
+| `./plantclef.py train --phase p2a --role sprint --mode tpu` | TPU pipeline (single-host). |
+| `./plantclef.py train --phase p2a --role sprint --mode auto` | Detect: TPU if `TPU_NAME` is set, else CUDA if `nvidia-smi` works. |
+| `CLUSTER_MODE=tpu ./src/setup/launch.sh p2a sprint --config configs/p2a_warmup.yaml` | Direct launcher invocation (bypasses plantclef.py). |
+| `CLUSTER_TPU_CORES=4 ./plantclef.py train --phase p2a --role sprint --mode tpu` | Override TPU core count (e.g. v5e-4). |

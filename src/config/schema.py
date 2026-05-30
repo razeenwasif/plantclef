@@ -129,8 +129,8 @@ class PostprocessConfig:
     noise_mask_penalty: float = 0.35
 
 @dataclass
-class OracleConfig:
-    """Root configuration object for the ORACLE engine."""
+class PlantCLEFConfig:
+    """Root configuration object for the PLANTCLEF engine."""
     hardware: HardwareConfig = field(default_factory=HardwareConfig)
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     model: ModelConfig = field(default_factory=ModelConfig)

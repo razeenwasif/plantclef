@@ -1,0 +1,29 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented the ANU team's submission to PlantCLEF 2026. Our headline system, specified in full
+in \S\ref{sec:final_submission}, is a partial fine-tune of BioCLIP 2.5 ViT-H/14 with only the last
+four transformer blocks unfrozen, trained on the enlarged PlantCLEF~2024 + iNaturalist (i001) manifest
+with taxonomy-aware auxiliary heads and evaluated under tiled softmax-mean inference with class-prior
+logit adjustment and a $224{+}336$ resolution ensemble. It reached a public Macro F1 of
+\textbf{0.41826} and a private Macro F1 of \textbf{0.40283}.
+
+Three findings carry the bulk of what this benchmark taught us. The first is that unfreeze depth
+matters on BioCLIP 2.5: a moderate depth of four to eight blocks is the operating region (the
+deployed model uses four), while a full fine-tune destroys the Tree-of-Life prior and drops the
+model to $0.301$ public / $0.296$ private. The second is
+the validation versus leaderboard decoupling: across our twelve strongest runs the two metrics
+correlate at only $r \approx 0.4$, and within the unfreeze ablation they invert entirely, which is
+direct evidence that the bottleneck on this benchmark is the single-plant to multi-species
+distribution shift rather than model capacity. The third is that auxiliary post-hoc reweighting of
+an already strong visual posterior carries essentially no usable signal beyond what the visual
+model has already absorbed: a triple-backbone classifier ($\Delta{=}{-}0.036$) introduced wrong
+evidence and hurt, while genus/family co-occurrence ($\Delta{=}{-}0.006$) and a seasonal phenology
+prior ($\Delta{=}{-}0.005$) both moved the anchor by amounts close to our run-to-run noise floor.
+Fine-tuned visual classifiers on biological data absorb these signals implicitly through
+training-distribution co-occurrence, leaving little for post-hoc combination to exploit.
+
+We close by stressing what these results do \emph{not} establish: the $010\rightarrow$i002 gain is
+confounded across data, schedule, and architecture, and we make no causal claim for any single
+change. We then point to \S\ref{sec:discussion} for the limitations and the directions for future
+work that follow from these findings.

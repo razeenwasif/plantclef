@@ -61,7 +61,7 @@ def aggregate_tiles(
             multiplier = 1.0 - (penalty_factor * p.tile_spec.noise_fraction)
             p.probs = p.probs * multiplier
 
-    # --- ORACLE: Dual-Scale Max-Pooling Aggregation ---
+    # --- PLANTCLEF: Dual-Scale Max-Pooling Aggregation ---
     # Separate tiles by their scale to process them as independent streams
     from collections import defaultdict
     scale_groups = defaultdict(list)
@@ -144,7 +144,7 @@ def _bayesian_veg_weighted(tile_preds: list[TilePrediction]) -> np.ndarray:
     veg_weights = np.array([p.tile_spec.veg_weight for p in tile_preds], dtype=np.float32)
     
     if HAS_EXT:
-        # ORACLE: High-Speed CUDA path
+        # plantclef: High-Speed CUDA path
         # 1. Convert to Torch Tensors on GPU
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         t_probs = torch.from_numpy(probs).to(device)

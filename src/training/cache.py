@@ -29,7 +29,7 @@ def get_cache_resume_point(cache_path: str, rank: int = 0) -> Tuple[int, int]:
 def chunked_backbone_forward(model, images, chunk_size=8):
     """Memory-efficient forward pass for large batches."""
     outputs = []
-    # ORACLE: Ensure features stay on GPU during training to prevent TransformerEngine crash
+    # plantclef: Ensure features stay on GPU during training to prevent TransformerEngine crash
     keep_on_device = images.is_cuda
     
     for i in range(0, images.size(0), chunk_size):
@@ -45,7 +45,7 @@ def chunked_backbone_forward(model, images, chunk_size=8):
     return torch.cat(outputs)
 
 def extract_and_cache_features(model, loader, device, cache_path):
-    """ORACLE: High-speed multi-GPU feature extraction with absolute persistence."""
+    """PLANTCLEF: High-speed multi-GPU feature extraction with absolute persistence."""
     import torch.distributed as dist
     from src import config as _cfg_local
     
@@ -85,7 +85,7 @@ def extract_and_cache_features(model, loader, device, cache_path):
         print(f"[Feature Cache][Rank {rank}] Shard {progress['shards_done']} saved in {time.time()-start:.2f}s")
 
     # 5. Extraction Loop
-    # ORACLE: Use config-defined extraction chunk size
+    # plantclef: Use config-defined extraction chunk size
     extract_chunk_size = getattr(_cfg_local, 'EXTRACT_CHUNK_SIZE', 8)
     
     with torch.no_grad():
@@ -136,7 +136,7 @@ def extract_and_cache_features(model, loader, device, cache_path):
             path = os.path.join(shard_dir, f"shard_rank{rank}_{shard_idx:04d}.pt")
             _write(shard_data, path, {"batches_done": total_batches, "shards_done": shard_idx + 1})
 
-    # ORACLE: NO AUTOMATIC DELETION. ALL DATA IS PERMANENT.
+    # plantclef: NO AUTOMATIC DELETION. ALL DATA IS PERMANENT.
     print(f"[Rank {rank}] Extraction Complete. ALL DATA PERSISTENT ON DISK.")
     return None # Merger will be done manually or via launcher
 
@@ -149,7 +149,7 @@ class CachedFeatureDataset(torch.utils.data.Dataset):
     High-performance dataset for training on cached backbone features.
     """
     def __init__(self, cache: Dict[str, torch.Tensor]):
-        # ORACLE: Logic to handle PCA vs Raw Concatenated features
+        # plantclef: Logic to handle PCA vs Raw Concatenated features
         if 'features_pca' in cache:
             self.features = cache['features_pca']
         elif all(k in cache for k in ['bio', 'dino', 'conv']):

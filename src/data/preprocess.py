@@ -8,7 +8,7 @@ on a CUDA box first, then point the TPU training run at the shard
 directory.
 
 Fail-fast guard below blocks the imports if someone accidentally hits
-this module under `ORACLE_MODE=tpu`.
+this module under `CLUSTER_MODE=tpu`.
 """
 
 import os
@@ -18,14 +18,14 @@ from pathlib import Path
 from typing import List, Union, Optional, Any
 
 # Fail-fast: this whole module is CUDA-only. Detect the active accelerator
-# mode (set by ORACLE_MODE / oracle.py --mode) and raise a clear error
+# mode (set by CLUSTER_MODE / plantclef.py --mode) and raise a clear error
 # before the DALI / cuDF imports below produce a confusing stack trace.
-_mode = os.environ.get("ORACLE_MODE", "auto").lower()
+_mode = os.environ.get("CLUSTER_MODE", "auto").lower()
 if _mode == "tpu":
     raise RuntimeError(
         "src/data/preprocess.py is a CUDA-only data-prep pipeline (DALI + cuDF). "
         "It cannot run on TPU hosts. Run dataset cleaning on a CUDA box first "
-        "(`ORACLE_MODE=cuda python -m src.data.preprocess ...`), then point your "
+        "(`CLUSTER_MODE=cuda python -m src.data.preprocess ...`), then point your "
         "TPU training run at the resulting shard directory."
     )
 

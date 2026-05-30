@@ -122,7 +122,7 @@ if HAS_DALI:
                 prefix = "train_" if training else "val_"
                 tar_files = sorted(glob.glob(os.path.join(shard_path, f"{prefix}*.tar")))
                 
-                # ORACLE: Filter out garbage files (e.g. 1KB placeholders/truncated shards)
+                # plantclef: Filter out garbage files (e.g. 1KB placeholders/truncated shards)
                 tar_files = [f for f in tar_files if os.path.getsize(f) > 1024 * 1024]
                 
                 index_paths = None
@@ -148,14 +148,14 @@ if HAS_DALI:
                                 if not os.path.exists(idx_f):
                                     generate_index(tar_f, idx_f)
                         
-                        # ORACLE: Fast-Epoch Transition
+                        # plantclef: Fast-Epoch Transition
                         # Sync all processes to ensure indices are visible before DALI reader init
                         import torch.distributed as dist
                         if dist.is_initialized():
                             dist.barrier()
                         
                         index_paths = idx_files
-                # ORACLE: Conditional RAM-Disk Indexing
+                # plantclef: Conditional RAM-Disk Indexing
                 # DALI will map the shards in memory if index_paths is None.
                 self.input = ops.readers.Webdataset(
                     paths=tar_files,
@@ -187,7 +187,7 @@ if HAS_DALI:
                 hw_decoder_load=1.0, affine=True
             )
             
-            # ORACLE: Force fixed shape for batch stacking (IsDenseTensor fix)
+            # plantclef: Force fixed shape for batch stacking (IsDenseTensor fix)
             self.resizer = ops.Resize(
                 device="gpu",
                 size=[resolution, resolution], 
@@ -208,7 +208,7 @@ if HAS_DALI:
         def define_graph(self) -> Tuple[Any, Any]:
             jpegs, labels = self.input()
             
-            # ORACLE: Binary Reinterpretation (Zero-Copy)
+            # plantclef: Binary Reinterpretation (Zero-Copy)
             # If using WebDataset, labels are 4-byte raw binary blocks from Rust
             if self.is_webdataset:
                 labels = fn.reinterpret(labels, dtype=types.INT32)

@@ -1,0 +1,26 @@
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Automated Plant Identification}
+
+Large-scale plant identification has been driven by the LifeCLEF series of evaluation campaigns~\cite{joly2024overview}, which have progressively increased in scale and difficulty. Early systems relied on hand-crafted features such as leaf shape descriptors and colour histograms~\cite{goeau2013pl}. The advent of deep convolutional networks brought substantial improvements, with Inception and ResNet architectures achieving competitive results on single-specimen classification~\cite{lee2017deep}. More recent work has shifted toward Vision Transformers (ViTs), which excel at capturing long-range spatial dependencies within images~\cite{dosovitskiy2021image}.
+
+The PlantCLEF 2024 and 2025 editions introduced the vegetation plot setting, highlighting the domain gap between specimen-level training data and plot-level test data~\cite{goeau2024plantclef}. Top-performing systems in those editions employed strategies such as tiled inference (SAHI-style slicing), test-time augmentation, and ensemble methods to bridge this gap.
+
+\subsection{Foundation Models for Biodiversity}
+
+BioCLIP~\cite{stevens2024bioclip} is a contrastive vision-language model trained on the BIOSCAN and TreeOfLife-10M datasets, which encompass millions of organism images annotated with hierarchical taxonomic labels. Unlike general-purpose CLIP models, BioCLIP aligns visual features with the Linnaean taxonomy, making its feature space inherently suited for biological classification tasks. Studies have shown that BioCLIP features outperform ImageNet-pretrained features for species identification, particularly for morphologically similar species~\cite{stevens2024bioclip}.
+
+DINOv3~\cite{simeoni2025dinov3} is a self-supervised ViT trained with a student-teacher distillation objective on a large curated dataset. Its features are highly transferable across domains and exhibit strong spatial correspondence, making them effective for fine-grained recognition tasks. We use DINOv3 features as one of three frozen feature extractors in our triple-backbone pivot (Section~\ref{sec:experiments}).
+
+ConvNeXt-V2~\cite{woo2023convnextv2} modernises the convolutional neural network paradigm by incorporating design elements from Transformers (e.g., larger kernel sizes, LayerNorm, GELU activations) alongside a Fully Convolutional Masked Autoencoder (FCMAE) pretraining strategy. ConvNeXt-V2 retains the inductive biases of CNNs (translation equivariance and locality) while achieving performance competitive with ViTs.
+
+\subsection{Partial Fine-Tuning of Large Pretrained Models}
+
+Fine-tuning all parameters of large pretrained models is often impractical: it requires substantial memory, risks catastrophic forgetting of pretraining knowledge, and tends to overfit when the downstream training set is noisy or long-tailed. A widely used alternative is to freeze the bulk of the backbone and adapt only the top few transformer blocks, which preserves the lower-layer features that capture domain-general structure while allowing the upper layers to specialise. For taxonomically aligned foundation models such as BioCLIP, this trade-off is particularly favourable, since the pretraining prior itself is what makes the model valuable on biological tasks.
+
+\subsection{Multi-Label Classification and Long-Tail Learning}
+
+Multi-label classification requires predicting a set of labels per input, typically using sigmoid activations and binary cross-entropy. Asymmetric Loss (ASL)~\cite{ridnik2021asymmetric} extends focal loss~\cite{lin2017focal} to the multi-label setting by applying separate focusing parameters $\gamma_+$ and $\gamma_-$ for positive and negative samples. By setting $\gamma_- > \gamma_+$, ASL aggressively down-weights easy negatives, which dominate in settings with thousands of classes.
+
+Logit adjustment~\cite{menon2021longtail} provides a complementary approach by shifting logits based on class prior probabilities, effectively requiring the model to produce larger margins for common classes and smaller margins for rare ones.

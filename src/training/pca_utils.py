@@ -81,11 +81,11 @@ def fit_pca(cache: Dict[str, torch.Tensor], batch_size: int = 50000) -> Any:
 
 def apply_pca(cache: Dict[str, torch.Tensor], pca: Any, batch_size: int = 100000) -> Dict[str, torch.Tensor]:
     """
-    ORACLE: Accelerated PCA transformation using optimized tensor views.
+    PLANTCLEF: Accelerated PCA transformation using optimized tensor views.
     """
     num_samples = len(cache['labels'])
     
-    # ORACLE: Attempt GPU-accelerated transformation if CuPy is installed
+    # plantclef: Attempt GPU-accelerated transformation if CuPy is installed
     try:
         import cupy as cp
         print("[PCA] Using CuPy for GPU-accelerated transformation...")

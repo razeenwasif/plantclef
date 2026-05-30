@@ -8,7 +8,7 @@ except ImportError:
 
 class RetrievalEngine:
     """
-    ORACLE SOTA: Retrieval-Augmented Classification.
+    PLANTCLEF SOTA: Retrieval-Augmented Classification.
     Uses FAISS to boost tail species recall via prototype matching.
     """
     def __init__(self, prototype_path: str, device: str = "cuda"):

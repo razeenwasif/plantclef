@@ -1,0 +1,64 @@
+# Cluster Manifest - example
+# ──────────────────────────────
+# Single source of truth for cluster topology. Pointing the coordinator
+# at this file lets it derive CLUSTER_NNODES, CLUSTER_MASTER_IP,
+# CLUSTER_NODE_RANK, and the per-host device count without the manual
+# file-lock rank-assignment dance.
+
+name: cluster-blackwell-pod
+mode: cuda          # cuda | tpu | auto
+
+master:
+  host: b1          # references one of the hosts[] ids below
+  port: 29505
+
+hosts:
+  - id: b1
+    hostname: node-b1.local      # resolvable name OR IP
+    type: cuda
+    device_count: 8              # GPUs (CUDA) or TPU cores (TPU)
+    role: master
+    aliases:                     # extra names this host answers to,
+      - 10.0.0.1                 # used by `--host-id`-free self-detect
+
+  - id: b2
+    hostname: node-b2.local
+    type: cuda
+    device_count: 8
+    role: worker
+
+  - id: b3
+    hostname: node-b3.local
+    type: cuda
+    device_count: 8
+    role: worker
+
+# ── TPU example ─────────────────────────────────────────────────────────────
+# Uncomment + replace the block above when running on a TPU pod slice.
+#
+# name: cluster-tpu-v4-32
+# mode: tpu
+# master:
+#   host: tpu-v4-32-0
+#   port: 29505
+# hosts:
+#   - id: tpu-v4-32-0
+#     hostname: 10.130.0.10
+#     type: tpu
+#     device_count: 8     # TPU cores on this VM
+#     role: master
+#   - id: tpu-v4-32-1
+#     hostname: 10.130.0.11
+#     type: tpu
+#     device_count: 8
+#     role: worker
+#   - id: tpu-v4-32-2
+#     hostname: 10.130.0.12
+#     type: tpu
+#     device_count: 8
+#     role: worker
+#   - id: tpu-v4-32-3
+#     hostname: 10.130.0.13
+#     type: tpu
+#     device_count: 8
+#     role: worker

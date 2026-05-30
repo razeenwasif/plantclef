@@ -1,0 +1,104 @@
+% System overview figure for the introduction -- matches inference_pipeline style
+%
+% Required preamble:
+%   \usepackage{tikz}
+%   \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds}
+
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  node distance=8pt and 14pt,
+  >={Stealth[length=4pt,width=4pt]},
+  every node/.style={transform shape},
+  stage/.style={
+    draw=black!75, line width=0.4pt,
+    rounded corners=2.4pt, fill=black!3,
+    minimum width=52mm, minimum height=10.5mm,
+    align=center, inner sep=4pt
+  },
+  emph/.style={
+    draw=black!75, line width=0.4pt,
+    rounded corners=2.4pt, fill=black!8,
+    minimum width=52mm, minimum height=11.5mm,
+    align=center, inner sep=4pt
+  },
+  io/.style={
+    draw=black!75, line width=0.4pt,
+    rounded corners=2.4pt, fill=white,
+    minimum width=52mm, minimum height=8mm,
+    align=center, inner sep=4pt
+  },
+  scope/.style={
+    draw=black!55, line width=0.3pt, dashed,
+    rounded corners=3pt, fill=black!0,
+    inner sep=10pt
+  },
+  scopelabel/.style={
+    fill=white, inner sep=2pt,
+    font=\sffamily\scriptsize\itshape,
+    text=black!65
+  },
+  flow/.style={->, line width=0.45pt, draw=black!70},
+  flowdashed/.style={->, line width=0.45pt, draw=black!55, dashed},
+  param/.style={
+    font=\sffamily\scriptsize,
+    text=black!55,
+    align=left,
+    inner sep=1pt
+  },
+]
+
+% ── Main column ───────────────────────────────────────────────────────────
+
+\node[io]    (data)      {PlantCLEF 2024 manifest \\
+                           \small\itshape (2.65M single-plant images, 7{,}806 species)};
+
+\node[emph]  (bioclip)   [below=of data]      {Partial-unfreeze BioCLIP 2.5 ViT-H/14 \\
+                                                {\scriptsize 28 blocks frozen $\cdot$ last 4 unfrozen $\cdot$ genus \& family heads}};
+
+\node[stage] (longtail)  [below=of bioclip]   {Long-tail rebalancing \\
+                                                {\scriptsize enlarged manifest, no per-species cap}};
+
+\node[stage] (inference) [below=of longtail]  {Tile-level inference \\
+                                                {\scriptsize $4{\times}4$ tiling $\cdot$ dual resolution $\cdot$ logit adjustment}};
+
+\node[stage] (selection) [below=of inference] {Multi-label selection \\
+                                                {\scriptsize adaptive threshold $T{=}0.03$,\quad $k \in [2,\,10]$}};
+
+\node[io]    (result)    [below=of selection] {Species set \\
+                                                \small\itshape (public Macro-F1\; 0.41826)};
+
+% ── Arrows ────────────────────────────────────────────────────────────────
+\draw[flow] (data)      -- (bioclip);
+\draw[flow] (bioclip)   -- (longtail);
+\draw[flow] (longtail)  -- (inference);
+\draw[flow] (inference) -- (selection);
+\draw[flow] (selection) -- (result);
+
+% ── Scope groupings ───────────────────────────────────────────────────────
+\begin{pgfonlayer}{background}
+  \node[scope, fit=(bioclip)(longtail)] (s2) {};
+  \node[scopelabel, anchor=east] at ($(s2.north west)+(-2pt,-7pt)$) {Training};
+
+  \node[scope, fit=(inference)(selection)] (s3) {};
+  \node[scopelabel, anchor=east] at ($(s3.north west)+(-2pt,-7pt)$) {Inference};
+\end{pgfonlayer}
+
+% ── Side-band callouts ────────────────────────────────────────────────────
+\node[param, right=14pt of data.east,      anchor=west] (p1)
+  {species / genus / family\\pre-filled for every row};
+\node[param, right=14pt of bioclip.east,   anchor=west] (p2)
+  {auxiliary losses regularise\\encoder};
+\node[param, right=14pt of longtail.east,  anchor=west] (p3)
+  {enlarged manifest, no cap};
+\node[param, right=14pt of inference.east, anchor=west] (p4)
+  {down-weights common species};
+\node[param, right=14pt of selection.east, anchor=west] (p5)
+  {$|S| \in [2,\,10]$};
+
+\draw[flowdashed] (data.east)      -- (p1.west);
+\draw[flowdashed] (bioclip.east)   -- (p2.west);
+\draw[flowdashed] (longtail.east)  -- (p3.west);
+\draw[flowdashed] (inference.east) -- (p4.west);
+\draw[flowdashed] (selection.east) -- (p5.west);
+
+\end{tikzpicture}

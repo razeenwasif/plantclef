@@ -1,0 +1,70 @@
+{
+  "run_slug": "bioclip-2-5-vith14_scientific",
+  "shard_id": 0,
+  "model_name": "hf-hub:imageomics/bioclip-2.5-vith14",
+  "prompt_mode": "scientific",
+  "n_species": 7806,
+  "total_prompts": 23418,
+  "min_per_species": 3,
+  "max_per_species": 3,
+  "avg_per_species": 3.0,
+  "n_images_found": 2105,
+  "n_images_processed": 2105,
+  "n_errors": 0,
+  "top_k": 3,
+  "tile_size": 160,
+  "tile_overlap": 60,
+  "stride": 100,
+  "tpu_batch_size": 2500,
+  "accumulate_tiles": 10000,
+  "pad_final_batch": true,
+  "num_workers": 16,
+  "prefetch_factor": 8,
+  "n_tiles_total": 1516469,
+  "n_forward_passes": 732,
+  "n_flush_calls": 147,
+  "n_padded_chunks": 146,
+  "avg_tiles_per_image": 720.41,
+  "avg_chunk_size": 2071.7,
+  "avg_images_per_flush": 14.3,
+  "throughput_images_per_sec": 0.591,
+  "throughput_tiles_per_sec": 426.0,
+  "startup_secs": 7.3,
+  "text_encoding_secs": 25.71,
+  "inference_total_secs": 3559.77,
+  "inference_per_image_secs": 1.6911,
+  "stage_timers": {
+    "aggregate_cpu": {
+      "total_secs": 3.069,
+      "count": 2105,
+      "avg_secs": 0.001458
+    },
+    "cat_tiles": {
+      "total_secs": 26.426,
+      "count": 147,
+      "avg_secs": 0.179771
+    },
+    "forward_pass": {
+      "total_secs": 172.799,
+      "count": 1516469,
+      "avg_secs": 0.000114
+    },
+    "image_load_tile_transform": {
+      "total_secs": 9.42,
+      "count": 2105,
+      "avg_secs": 0.004475
+    },
+    "matmul_logits": {
+      "total_secs": 0.332,
+      "count": 732,
+      "avg_secs": 0.000453
+    },
+    "topk": {
+      "total_secs": 0.091,
+      "count": 2105,
+      "avg_secs": 4.3e-05
+    }
+  },
+  "device": "xla:0",
+  "backend": "xla"
+}

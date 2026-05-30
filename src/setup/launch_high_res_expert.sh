@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===========================================================================
-# ORACLE: High-Resolution Specialist Training (RTX PRO 6000 Blackwell × 3)
+# plantclef: High-Resolution Specialist Training (RTX PRO 6000 Blackwell × 3)
 # ===========================================================================
 # Trains BioCLIP and DINOv3 experts sequentially, then runs SWA on each.
 # Produces swa_model_final.pth in models/cuda_deep_sat/<expert>/ for the
@@ -61,7 +61,7 @@ _swa_expert() {
 }
 
 echo "==========================================================="
-echo "ORACLE: High-Resolution Specialist Training  (GPUs: $NUM_GPUS)"
+echo "PLANTCLEF: High-Resolution Specialist Training  (GPUs: $NUM_GPUS)"
 echo "==========================================================="
 
 if [[ "$EXPERT" == "all" || "$EXPERT" == "bioclip" ]]; then
@@ -76,5 +76,5 @@ fi
 
 echo "==========================================================="
 echo "ALL HIGH-RES SPECIALISTS COMPLETED."
-echo "Next: ./oracle.py cache --role sprint --batch 512"
+echo "Next: ./plantclef.py cache --role sprint --batch 512"
 echo "==========================================================="

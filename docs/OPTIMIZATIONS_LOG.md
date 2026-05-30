@@ -1,4 +1,4 @@
-# ORACLE Optimization & Multi-Node Cluster Log (April 23, 2026)
+# PLANTCLEF Optimization & Multi-Node Cluster Log (April 23, 2026)
 
 This document tracks the high-performance enhancements and architectural fixes applied to the PlantCLEF 2026 pipeline to enable stable 4-GPU distributed training across multiple Pods.
 
@@ -41,7 +41,7 @@ This document tracks the high-performance enhancements and architectural fixes a
 ---
 **Status:** All optimizations are active. Phase 1 Warmup is currently running at maximum theoretical throughput.
 
-## 7. Ultra-ORACLE Blackwell Satiation (April 28-29, 2026)
+## 7. Ultra-PLANTCLEF Blackwell Satiation (April 28-29, 2026)
 *   **FlashAttention-4 (FA4) & Stable-SDPA:** Implemented native Blackwell attention using `flash_attn.cute`. Tuned the monkeypatching logic to prioritize **FlashAttention-2** and **Stable-SDPA** kernels for non-aligned sequence lengths (224px / 257 tokens), ensuring 100% stability without sacrificing throughput.
 *   **TransformerEngine FP8 Satiation:** Migrated ensemble gating and projection networks to **FP8**. Directly exploits `tcgen05` hardware to double compute throughput for fusion layers while reducing the VRAM footprint by ~50% for those modules.
 *   **Zero-Overhead Backward Pass:** Disabled **Gradient Checkpointing** for the 224px / Batch 128 configuration. Since Blackwell HBM capacity is sufficient, removing re-computation provides a **~30% pure compute speedup**.

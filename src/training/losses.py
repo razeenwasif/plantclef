@@ -23,7 +23,7 @@ class FusedASLFunction(Function):
         Forward pass for advanced fused ASL.
         """
         dtype = logits.dtype
-        # ORACLE: Enforce contiguity and proper alignment for CUDA kernel
+        # plantclef: Enforce contiguity and proper alignment for CUDA kernel
         l_c = logits.contiguous()
         t_c = targets.contiguous() # Now guaranteed to be dense [B, NumClasses]
         a_c = logit_adjustments.to(dtype).contiguous()
@@ -54,7 +54,7 @@ class FusedASLFunction(Function):
         logits, targets, logit_adjustments, genus_ids, gamma_neg_tensor, target_genus_ids = ctx.saved_tensors
         dtype = logits.dtype
         
-        # ORACLE: Ensure grad_output is contiguous and consistent
+        # plantclef: Ensure grad_output is contiguous and consistent
         go_c = grad_output.contiguous()
         
         grad_logits = plantclef_ext.fused_asl_backward(
@@ -85,7 +85,7 @@ class LogitAdjustmentLoss(nn.Module):
 class AsymmetricLoss(nn.Module):
     """
     Advanced Asymmetric Loss with Fused CUDA support and Taxonomic Hierarchy.
-    ORACLE: Enhanced with Duality-Derived per-class focusing parameters.
+    PLANTCLEF: Enhanced with Duality-Derived per-class focusing parameters.
     """
     def __init__(self, gamma_neg: float = 4, gamma_pos: float = 1, clip: float = 0.05, 
                  eps: float = 1e-8, logit_adjustments: Optional[torch.Tensor] = None, 
@@ -113,7 +113,7 @@ class AsymmetricLoss(nn.Module):
         else:
             self.register_buffer('genus_ids', None)
 
-        # ORACLE: Duality-Derived Focusing (Fenchel Duality)
+        # plantclef: Duality-Derived Focusing (Fenchel Duality)
         # Optimal gamma ratio satisfies: gamma_neg/gamma_pos = log(N_neg/N_pos) / log(N_neg)
         if class_counts is not None:
             import numpy as np
@@ -150,7 +150,7 @@ class AsymmetricLoss(nn.Module):
                 # y can be one-hot (float) or hard labels (long)
                 if y.dim() == 1:
                     target_species = y.to(x.device)
-                    # ORACLE: The fused kernel expects a dense target matrix (one-hot or soft labels)
+                    # plantclef: The fused kernel expects a dense target matrix (one-hot or soft labels)
                     # matched to the shape of logits [B, NumClasses].
                     y_dense = torch.zeros_like(x)
                     y_dense.scatter_(1, target_species.unsqueeze(1), 1.0)
@@ -175,10 +175,10 @@ class AsymmetricLoss(nn.Module):
         if self.clip > 0:
             xs_neg = (xs_neg + self.clip).clamp(max=1)
         
-        # ORACLE: Auto-convert hard labels to one-hot for shape matching
+        # plantclef: Auto-convert hard labels to one-hot for shape matching
         if y.dim() == 1:
             y_soft = torch.zeros_like(xs_pos)
-            # ORACLE: Guard against out-of-bounds labels when the dataloader encounters corrupted/missing class IDs
+            # plantclef: Guard against out-of-bounds labels when the dataloader encounters corrupted/missing class IDs
             y_valid = y.clamp(0, xs_pos.size(1) - 1)
             y_soft.scatter_(1, y_valid.unsqueeze(1), 1.0)
             

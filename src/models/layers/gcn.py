@@ -1,6 +1,6 @@
 """
 Ecological Graph Convolutional Network (GCN) for Weight Generation.
-ORACLE: Hardened for 4-GPU Cluster Stability and Blackwell FP8 alignment.
+PLANTCLEF: Hardened for 4-GPU Cluster Stability and Blackwell FP8 alignment.
 """
 
 import os
@@ -13,7 +13,7 @@ from typing import Optional, Any
 try:
     import plantclef_ext
     HAS_EXT = True
-    # ORACLE: Correct function names for Torch Dynamo (matched to bindings.cpp)
+    # plantclef: Correct function names for Torch Dynamo (matched to bindings.cpp)
     if hasattr(torch, 'compiler'):
         torch.compiler.allow_in_graph(plantclef_ext.fused_gcn_forward)
         torch.compiler.allow_in_graph(plantclef_ext.fused_gcn_backward)
@@ -26,7 +26,7 @@ class FusedGCNFunction(torch.autograd.Function):
     def forward(ctx: Any, adj: torch.Tensor, traits: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
         ctx.save_for_backward(adj, traits, theta)
         
-        # ORACLE: Fused CUDA Path (10x Speedup)
+        # plantclef: Fused CUDA Path (10x Speedup)
         if HAS_EXT and adj.is_cuda:
             try:
                 # The kernel performs: Output = Adj @ (Traits @ Theta)
@@ -48,7 +48,7 @@ class FusedGCNFunction(torch.autograd.Function):
     def backward(ctx: Any, grad_output: torch.Tensor) -> Any:
         adj, traits, theta = ctx.saved_tensors
         
-        # ORACLE: Hardened Backward Path
+        # plantclef: Hardened Backward Path
         if HAS_EXT and adj.is_cuda:
             try:
                 # Reconstruct gradients using the high-speed C++ path
@@ -91,7 +91,7 @@ class EcologicalGCNHead(nn.Module):
                 t = t[:num_classes]
             t = (t - t.mean(0, keepdim=True)) / (t.std(0, keepdim=True) + 1e-6)
         else:
-            # ORACLE: Random initialization for test environments and CI
+            # plantclef: Random initialization for test environments and CI
             t = torch.randn(num_classes, trait_dim) * 0.1
         self.register_buffer("traits", t)
         
@@ -106,7 +106,7 @@ class EcologicalGCNHead(nn.Module):
             else:
                 a = a[:num_classes, :num_classes]
         else:
-            # ORACLE: Identity fallback (no ecological graph structure)
+            # plantclef: Identity fallback (no ecological graph structure)
             a = torch.eye(num_classes)
 
         # Blend with phylogenetic adjacency (patristic distance proxy).
@@ -137,13 +137,13 @@ class EcologicalGCNHead(nn.Module):
     def forward(self, image_features: torch.Tensor, adj: Optional[torch.Tensor] = None) -> torch.Tensor:
         use_adj = adj if adj is not None else self.adj
         
-        # ORACLE: Device Alignment Hardening
+        # plantclef: Device Alignment Hardening
         device = image_features.device
         traits_gpu = self.traits.to(device)
         adj_gpu = use_adj.to(device)
         theta_gpu = self.theta.to(device)
         
-        # ORACLE: Performance Critical Fix
+        # plantclef: Performance Critical Fix
         # We disable torch.compile for the custom autograd function call.
         # This prevents the 'cudagraph partition' breaks that destroyed throughput.
         @torch.compiler.disable
@@ -161,6 +161,6 @@ class EcologicalGCNHead(nn.Module):
         image_features = F.normalize(image_features, p=2, dim=1, eps=1e-8).to(species_weights.dtype)
         species_weights = F.normalize(species_weights, p=2, dim=1, eps=1e-8)
         
-        # ORACLE: Saturation Guard
+        # plantclef: Saturation Guard
         scale = self.logit_scale.exp().clamp(max=10.0)
         return torch.matmul(image_features, species_weights.t()) * scale

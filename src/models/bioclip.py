@@ -5,7 +5,7 @@ import open_clip
 from typing import Optional, Union
 import contextlib
 
-# ORACLE: Robust SDPA Kernel Fallback & Context Wrapper
+# plantclef: Robust SDPA Kernel Fallback & Context Wrapper
 try:
     from torch.nn.attention import sdpa_kernel as _sdpa_kernel, SDPBackend
     _NEW_SDPA = True
@@ -18,7 +18,7 @@ except ImportError:
         SDPBackend = None
         _NEW_SDPA = False
 
-# ORACLE: Determine available backends once
+# plantclef: Determine available backends once
 SDP_BACKENDS = []
 if SDPBackend is not None:
     for b in ["FLASH_ATTENTION", "CUDNN_ATTENTION", "EFFICIENT_ATTENTION"]:
@@ -55,7 +55,7 @@ class PlantBioCLIP(nn.Module):
         print(f"[BioCLIP] Loading checkpoint: {checkpoint}")
         self.model, _, _ = open_clip.create_model_and_transforms(checkpoint)
 
-        # Stock OpenCLIP forward path. Two earlier "ORACLE" monkey-patches were
+        # Stock OpenCLIP forward path. Two earlier "PLANTCLEF" monkey-patches were
         # removed because they silently corrupted the visual transformer:
         #
         #   (1) `memory_efficient_attention` assumed seq-first input `[L, B, C]`,

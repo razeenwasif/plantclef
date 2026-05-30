@@ -95,7 +95,7 @@ def _sample_to_pair(sample: dict, transform):
 # ── DALI-shape adapter ──────────────────────────────────────────────────────
 class _DaliShapeAdapter:
     """Wrap a torch DataLoader so its iterator yields
-    ``[{'data': ..., 'label': ...}]`` — the shape the rest of ORACLE expects
+    ``[{'data': ..., 'label': ...}]`` — the shape the rest of PLANTCLEF expects
     from the DALI iterator.
 
     Also exposes ``reset()`` for parity with DALIGenericIterator (no-op here;

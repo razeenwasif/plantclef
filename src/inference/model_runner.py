@@ -22,7 +22,7 @@ import torch.nn as nn
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 
-# ORACLE: Force static shape for inference stability & CUDA Graph capture
+# plantclef: Force static shape for inference stability & CUDA Graph capture
 if hasattr(torch, '_inductor'):
     import torch._inductor.config as inductor_cfg
     try:
@@ -207,7 +207,7 @@ class PlantEnsembleAdapter(BaseModelAdapter):
             else:
                 state = ckpt
 
-            # ORACLE: Detect if this is a teammate single-backbone model
+            # plantclef: Detect if this is a teammate single-backbone model
             # Ensemble models use nested prefixes: 'bioclip.backbone.', 'dinov3.backbone.', etc.
             # Teammate models use top-level 'backbone.' or 'classifier.'
             ensemble_prefixes = ['bioclip.backbone', 'dinov3.backbone', 'convnext.backbone', 'proj_linear']
@@ -216,13 +216,13 @@ class PlantEnsembleAdapter(BaseModelAdapter):
             if self.is_teammate:
                 logger.info("[Surgery] Teammate single-backbone model detected. Re-routing weights...")
                 
-                # ORACLE: Improved Expert Detection
+                # plantclef: Improved Expert Detection
                 if any(k.endswith("text_projection") for k in state.keys()) or "bioclip" in str(checkpoint_path).lower():
                     target_expert = "bioclip"
                 else:
                     target_expert = "dinov3"
 
-                # ORACLE: Find classification head FIRST to determine backbone requirements
+                # plantclef: Find classification head FIRST to determine backbone requirements
                 def find_head_key(s):
                     # priority candidates (looking for exactly _num_classes outputs)
                     candidates = ["species_head.weight", "fc_final.weight", "head.weight", "classifier.weight", "fc.weight"]
@@ -233,7 +233,7 @@ class PlantEnsembleAdapter(BaseModelAdapter):
 
                 head_weight_key = find_head_key(state)
                 
-                # ORACLE: Dynamic Backbone Adaptation
+                # plantclef: Dynamic Backbone Adaptation
                 # We use the head's input dimension to pick the correct BioCLIP variant
                 if target_expert == "bioclip" and head_weight_key:
                     required_dim = state[head_weight_key].shape[1]
@@ -291,7 +291,7 @@ class PlantEnsembleAdapter(BaseModelAdapter):
                         new_k = clean_k.replace("backbone.", f"{target_expert}.backbone.")
                         teammate_state[new_k] = v
                     elif "visual.proj" in clean_k:
-                        # ORACLE: Handle the 1280 -> 1024 projection layer for ViT-H
+                        # plantclef: Handle the 1280 -> 1024 projection layer for ViT-H
                         teammate_state[f"{target_expert}.backbone.proj"] = v
                     elif head_weight_key and clean_k == head_weight_key:
                         teammate_state["phase1_head.fc_final.weight"] = v
@@ -314,13 +314,13 @@ class PlantEnsembleAdapter(BaseModelAdapter):
                 def teammate_forward(inst, x, *args, **kwargs):
                     with torch.amp.autocast('cuda', dtype=torch.bfloat16):
                         expert = getattr(inst, target_expert)
-                        # ORACLE: Use return_features=True to bypass CLIP 512-d bottleneck
+                        # plantclef: Use return_features=True to bypass CLIP 512-d bottleneck
                         if target_expert == "bioclip":
                             feat = expert(x, return_features=True)
                         else:
                             feat = expert(x)
                             
-                        # ORACLE: Final Safety Check
+                        # plantclef: Final Safety Check
                         if feat.shape[1] != inst.phase1_head.fc_final.in_features:
                             # Apply internal projection if it exists in the checkpoint (1280 -> 1024)
                             if hasattr(expert.backbone, 'proj') and expert.backbone.proj is not None:
@@ -550,7 +550,7 @@ class _TileDataset(Dataset):
         """
         if img.mode != "RGB":
             img = img.convert("RGB")
-        # ORACLE: Default to Lanczos for domain shift resilience
+        # plantclef: Default to Lanczos for domain shift resilience
         img = img.resize((self.input_size, self.input_size), self._interp)
         arr = np.asarray(img, dtype=np.float32) / 255.0          # (H, W, 3)
 
@@ -596,17 +596,17 @@ class ModelRunner:
         from src import config as _scfg
         self.extreme = getattr(_scfg, 'EXTREME_MODE', False)
         
-        # ORACLE: Ensure the model is in eval mode before any optimization
+        # plantclef: Ensure the model is in eval mode before any optimization
         # This handles submodules that might have been loaded lazily
         self._model.eval()
         
-        # ORACLE: SOTA Inference Optimization
+        # plantclef: SOTA Inference Optimization
         # Use torchao for Blackwell INT8/FP8 Quantization
         if self.cfg.device == "cuda" and not getattr(self, "is_teammate", False):
             try:
                 import torchao
                 from torchao.quantization import quantize_, int8_weight_only
-                logger.info("[ORACLE] Applying Blackwell-optimized INT8 Weight-Only Quantization via torchao...")
+                logger.info("[plantclef] Applying Blackwell-optimized INT8 Weight-Only Quantization via torchao...")
                 quantize_(self._model, int8_weight_only())
             except ImportError:
                 logger.warning("torchao not installed. Skipping INT8 Quantization.")
@@ -614,7 +614,7 @@ class ModelRunner:
         # Use torch.compile to fuse kernels and enable automatic CUDA Graphs
         if self.cfg.use_compile:
             compile_mode = "default" if getattr(self, "is_teammate", False) else "max-autotune"
-            logger.info(f"[ORACLE] Compiling model (Mode: {compile_mode})...")
+            logger.info(f"[plantclef] Compiling model (Mode: {compile_mode})...")
             
             try:
                 if not getattr(self, "is_teammate", False):
@@ -726,7 +726,7 @@ class ModelRunner:
         if not tiles:
             return []
 
-        # ORACLE: Submodular Optimization
+        # plantclef: Submodular Optimization
         if max_tiles and len(tiles) > max_tiles:
             logger.info(f"[Optim] Submodular selection: Reducing {len(tiles)} -> {max_tiles} tiles.")
             tiles = self.select_informative_tiles(tiles, k=max_tiles)
@@ -752,7 +752,7 @@ class ModelRunner:
         m_dtype = torch.bfloat16 if self.extreme else torch.float32
         amp_ctx = torch.amp.autocast(device_type=self._device.type, dtype=m_dtype)
 
-        # ORACLE: CUDA Graph Buffers (Persistent across batches)
+        # plantclef: CUDA Graph Buffers (Persistent across batches)
         if not hasattr(self, "_cuda_graphs"):
             self._cuda_graphs = {} # Dict of {batch_size: graph}
             self._static_inputs = {}
@@ -764,7 +764,7 @@ class ModelRunner:
             
             with amp_ctx:
                 # Base Forward Pass (Standard Path)
-                # ORACLE: Manual CUDA Graph capture is disabled as it is incompatible with 
+                # plantclef: Manual CUDA Graph capture is disabled as it is incompatible with 
                 # DINOv3's dynamic RoPE generation. Use torch.compile for graph acceleration.
                 use_manual_graph = False
 

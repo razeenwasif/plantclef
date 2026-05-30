@@ -5,7 +5,7 @@ import os
 # Get the directory of this setup.py file
 ext_dir = os.path.dirname(os.path.abspath(__file__))
 csrc_dir = os.path.join(ext_dir, 'csrc')
-rust_lib_path = os.path.join(ext_dir, '../../../engines/rust/oracle_resizer/target/release/liboracle_resizer.a')
+rust_lib_path = os.path.join(ext_dir, '../../../engines/rust/train_resizer/target/release/libtrain_resizer.a')
 
 extra_objects = []
 if os.path.exists(rust_lib_path):

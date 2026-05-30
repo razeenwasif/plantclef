@@ -1,0 +1,102 @@
+% Head-design schematic -- 010 shared MLP trunk vs i002 independent per-head MLPs.
+% Pictorial only; dims from report/head_features/tex_info (hidden 1024; heads
+% species 7806, genus 1446, family 181, order 61, class 6).
+% Style follows figures/aggregation_definitions_figure.tex (sffamily, accent
+% colours, rounded cards). Include in a figure* float (see sections/experiments.tex).
+%
+% Required preamble (already in report/preamble.tex):
+%   \usepackage{tikz}
+%   \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds}
+
+\begin{tikzpicture}[
+  font=\sffamily,
+  >={Stealth[length=4.5pt,width=5pt]},
+  card/.style={rounded corners=4pt},
+  enc/.style={draw=Enc!55, fill=Enc!12, rounded corners=3pt, line width=0.6pt,
+              align=center, font=\sffamily\scriptsize, inner sep=4pt},
+  mlp/.style={draw=#1!60, fill=#1!14, rounded corners=3pt, line width=0.6pt,
+              align=center, font=\sffamily\scriptsize, inner sep=3.5pt, minimum height=8mm},
+  head/.style={draw=#1!55, fill=#1!8, rounded corners=2pt, line width=0.5pt,
+               align=center, font=\sffamily\scriptsize, inner sep=2.4pt, minimum height=7mm},
+  flow/.style={->, line width=0.6pt, draw=black!55},
+  grad/.style={->, densely dashed, line width=0.6pt, draw=#1!75},
+  collab/.style={font=\sffamily\small\bfseries, text=black!70},
+  note/.style={font=\sffamily\scriptsize, text=black!60, align=center},
+]
+
+% --- palette -----------------------------------------------------------------
+\definecolor{Enc}{RGB}{70,90,120}      % backbone slate
+\definecolor{Shar}{RGB}{123,84,193}    % 010 shared trunk (violet)
+\definecolor{Sp}{RGB}{33,102,172}      % species (blue)
+\definecolor{Ge}{RGB}{42,157,123}      % genus (teal-green)
+\definecolor{Fa}{RGB}{226,135,38}      % family (amber)
+\definecolor{Oc}{RGB}{120,120,120}     % order/class (grey)
+
+% =============================================================================
+% PANEL A -- experiment 010: shared MLP trunk -> five heads
+% =============================================================================
+\begin{scope}[shift={(0,0)}]
+  \node[collab] at (3.2,4.55) {Experiment 010: shared MLP trunk};
+
+  % backbone
+  \node[enc, minimum width=6.2cm, minimum height=8mm] (b010) at (3.2,0)
+    {BioCLIP 2.5 ViT-H/14 encoder};
+
+  % shared MLP
+  \node[mlp=Shar, minimum width=4.2cm] (s010) at (3.2,1.55)
+    {Shared MLP};
+
+  % five heads
+  \node[head=Sp] (h010sp) at (0.55,3.35) {species\\\tiny 7806};
+  \node[head=Ge] (h010ge) at (1.85,3.35) {genus\\\tiny 1446};
+  \node[head=Fa] (h010fa) at (3.15,3.35) {family\\\tiny 181};
+  \node[head=Oc] (h010or) at (4.45,3.35) {order\\\tiny 61};
+  \node[head=Oc] (h010cl) at (5.75,3.35) {class\\\tiny 6};
+
+  % flow
+  \draw[flow] (b010) -- (s010);
+  \draw[flow] (s010.north) -- (h010sp.south);
+  \draw[flow] (s010.north) -- (h010ge.south);
+  \draw[flow] (s010.north) -- (h010fa.south);
+  \draw[flow] (s010.north) -- (h010or.south);
+  \draw[flow] (s010.north) -- (h010cl.south);
+
+  % gradient coupling: taxonomy losses pass back through the shared trunk
+  \draw[grad=Shar] (h010cl.east) to[out=0,in=0] (s010.east);
+  \node[note, text=Shar!75!black, text width=6.2cm, anchor=center] at (3.2,4.05)
+    {dashed: taxonomy-loss gradients flow back through the shared trunk};
+\end{scope}
+
+% =============================================================================
+% PANEL B -- experiment i002: independent per-head MLPs
+% =============================================================================
+\begin{scope}[shift={(8.0,0)}]
+  \node[collab] at (2.6,4.55) {Experiment i002: independent per-head MLPs};
+
+  % backbone
+  \node[enc, minimum width=6.2cm, minimum height=8mm] (bi02) at (2.6,0)
+    {BioCLIP 2.5 ViT-H/14 encoder};
+
+  % three per-head MLPs
+  \node[mlp=Sp, minimum width=1.5cm] (mi02sp) at (0.8,1.55) {species\\MLP};
+  \node[mlp=Ge, minimum width=1.5cm] (mi02ge) at (2.6,1.55) {genus\\MLP};
+  \node[mlp=Fa, minimum width=1.5cm] (mi02fa) at (4.4,1.55) {family\\MLP};
+
+  % three heads
+  \node[head=Sp] (hi02sp) at (0.8,3.35) {species\\\tiny 7806};
+  \node[head=Ge] (hi02ge) at (2.6,3.35) {genus\\\tiny 1446};
+  \node[head=Fa] (hi02fa) at (4.4,3.35) {family\\\tiny 181};
+
+  % flow: backbone -> each MLP -> own head (gradients stay in branch)
+  \draw[flow] (bi02.north -| mi02sp) -- (mi02sp.south);
+  \draw[flow] (bi02.north -| mi02ge) -- (mi02ge.south);
+  \draw[flow] (bi02.north -| mi02fa) -- (mi02fa.south);
+  \draw[flow] (mi02sp) -- (hi02sp);
+  \draw[flow] (mi02ge) -- (hi02ge);
+  \draw[flow] (mi02fa) -- (hi02fa);
+
+  \node[note, text=black!60, text width=5.0cm, anchor=north] at (2.6,-0.7)
+    {auxiliary gradients stay within each branch above the shared backbone};
+\end{scope}
+
+\end{tikzpicture}

@@ -1,72 +1,26 @@
-# --- Core Deep Learning & Hardware Acceleration ---
+# Runtime requirements for the i002 paper pipeline.
+#
+# These are the only dependencies needed to train, run inference, and
+# reproduce the headline submission of report/main.tex. The legacy
+# pipeline in legacy/ used a much larger stack (NVIDIA DALI, DeepSpeed,
+# cuDF, PEFT, SAM, etc.); none of that is required for the paper code.
+
+# --- Core deep-learning stack -----------------------------------------------
 torch>=2.2.0
 torchvision>=0.17.0
-torchaudio
-accelerate>=0.27.0
-transformer-engine>=1.7.0 # Blackwell FP8 Support
 
-# --- Memory & Training Optimisation ---
-deepspeed>=0.14.0
-peft>=0.10.0
-
-# --- Foundation Model (BioCLIP) ---
+# --- Foundation model: BioCLIP 2.5 ViT-H/14 ---------------------------------
 open_clip_torch>=2.24.0
 
-# --- Backbone Models ---
-timm>=1.0.0
-
-# --- GPU-Accelerated Metrics ---
-torchmetrics>=1.3.0
-
-# --- Data Processing & Augmentation ---
-opencv-python
+# --- Data + image I/O -------------------------------------------------------
 pandas>=2.1.0
 numpy>=1.26.0
 Pillow>=10.0.0
---extra-index-url https://pypi.nvidia.com
-cudf-cu12
-cupy-cuda12x
-nvidia-dali-cuda120
-albumentations>=1.4.0
-rasterio
-pygbif
 
-# --- Generative Synthesis (Diffusion) ---
-diffusers
-transformers
-
-# --- LVLM & Cross-Modal Distillation ---
-# Note: install flash-attn separately using: MAX_JOBS=4 pip install flash-attn --no-build-isolation
-hf_transfer
-qwen-vl-utils
-
-# --- Optimization & Metrics ---
-scipy>=1.11.0
-scikit-learn>=1.4.0
-
-# --- Utilities & Experiment Tracking ---
+# --- Training-time utilities ------------------------------------------------
 tqdm
 python-dotenv
-PyYAML
-firebase-admin>=6.4.0  # control plane — only required by scripts/pod_agent.py
+
+# --- Optional: experiment tracking ------------------------------------------
+# Enabled by passing --wandb to src/train.py; omit if you don't need it.
 wandb>=0.16.0
-xxhash
-requests
-optuna
-
-# --- Phase 2 & 3 Dependencies (SAM & Tiling) ---
-git+https://github.com/facebookresearch/segment-anything.git
-sahi>=0.11.15
-open3d # 3D Reconstruction & Biomass Estimation
-webdataset
-PyTurboJPEG
-polars
-
-# --- TPU support (OPTIONAL; install only on Cloud TPU VMs) ---
-# `./oracle.py train --mode tpu` requires torch_xla. Match torch_xla's
-# major.minor exactly to your torch version. On a CUDA host, leave this
-# uninstalled — the accelerator abstraction imports it lazily.
-#
-#   pip install torch_xla -f https://storage.googleapis.com/libtpu-releases/index.html
-#
-# See docs/TPU.md for the full setup.

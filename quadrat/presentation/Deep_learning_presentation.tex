@@ -1,0 +1,111 @@
+\documentclass{beamer}
+
+\usetheme{Madrid}
+
+% Custom footer
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{author in head/foot}%
+    de Mel, Raj, Wasif, Brake
+\end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,center]{title in head/foot}%
+    COMP3242/COMP6242 - Deep Learning
+  \end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.333333\paperwidth,ht=2.25ex,dp=1ex,right]{date in head/foot}%
+    31 May 2026 \hspace*{2em} \insertframenumber{} / \inserttotalframenumber \hspace*{2ex}
+  \end{beamercolorbox}}%
+  \vskip0pt%
+}
+
+% Title page info
+\title{Multi-Backbone Ensemble with LoRA Adaptation for
+Multi-Label Plant Species Identification in Vegetation
+Plots}
+\author{Manindra de Mel, Arjun Raj, Razeen Wasif, Will Brake}
+\institute{\textbf{Australian National University}}
+\date{31 May 2026}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}{Introduction - Task and Motivation}
+
+\begin{itemize}
+    \item Vegetation surveys are \textbf{costly} and \textbf{hard to scale} - manual quadrat-based identification requires expert botanists on-site
+\end{itemize}
+\begin{itemize}
+    \item PlantCLEF 2026 \textbf{automates} this - multi-label classification of all plant species from a single quadrat photo across ~7,800 species
+\end{itemize}
+\begin{itemize}
+    \item Evaluated using \textbf{macro-averaged F1} - computed per sample and aggregated across transects
+\end{itemize}
+$$\text{Score} = \frac{1}{N} \sum_{i=1}^{N} \left( \frac{1}{T_i} \sum_{j=1}^{T_i} \text{F1}^j \right)$$Where $N$ is the total number of transects. $T_i$ is the number of quadrats in transect $i$. $\text{F1}^j$ is the macro-averaged F1 score for test image $j$. 
+    
+\end{frame}
+
+\begin{frame}{Introduction - Challenges}
+
+\begin{itemize}
+    \item \textbf{Domain shift} between training and test data - models trained on isolated single-species images struggle with dense, complex quadrat scenes where multiple species overlap and obstruct one another
+\end{itemize}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.45\linewidth]{DomainShift.png}
+    \caption{Illustration of the visual discrepancy between test and training sets. (Source: PlantCLEF 2026 Challenge, Kaggle)}
+\end{figure}
+\begin{itemize}
+    \item Long-tail species distribution - common species have thousands of training images while rare species may have fewer than ten, causing models to \textbf{over-predict} common classes and yielding \textbf{low} macro-F1
+\end{itemize}
+    
+\end{frame}
+
+\begin{frame}{Method --- Pipeline Overview}
+    \begin{center}
+        \includegraphics[width=\textwidth]{pipeline_diagram_.pdf}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Experiments}
+    \begin{center}
+        \includegraphics[width=\textwidth]{}
+\begin{figure}
+        \centering
+        \includegraphics[width=1\linewidth]{score_progression_madrid.pdf}
+    \end{figure}
+        \end{center}
+    
+\end{frame}
+
+\begin{frame}{Key Findings}
+  \begin{itemize}
+    \item Fine-tuning only the top four transformer blocks
+      outperformed a full fine-tune by 20 F1 points, preserving
+      the model's pretrained biological knowledge.
+    \item Validation accuracy increased while leaderboard
+      performance stayed the same - the single-plant to multi-species
+      domain gap, is the main constraint.
+    \item Additional priors produced no measurable gain as genus
+      co-occurrence and seasonal timing were both already
+      found by the model during training.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Conclusion and Further Work}
+  \begin{itemize}
+    \item Best result: \textbf{0.412 public / 0.403 private
+      Macro-F1} from a single BioCLIP~2.5 checkpoint, without
+      ensembling.
+    \item More potential gains from improving data  then better architecture
+      - training on synthetic multi-species scenes that match
+      the test distribution.
+    \item New signal could come from \textbf{outside
+      the image}: location, observation date, and per-class
+      threshold calibration.
+  \end{itemize}
+\end{frame}
+
+
+\end{document}
+

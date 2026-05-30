@@ -10,7 +10,7 @@ hangs on `nccl-allreduce`" failure mode.
 Design
 ------
 * The **producer** is ``src.training.telemetry``'s heartbeat thread:
-  every ``ORACLE_HEARTBEAT_INTERVAL`` seconds (default 15), each rank
+  every ``PLANTCLEF_HEARTBEAT_INTERVAL`` seconds (default 15), each rank
   appends ``{name: "heartbeat", rank: N, ts: ...}`` to its sink.
 * The **consumer** is this module's :class:`LivenessMonitor`. It
   reads every rank's most recent JSONL line and computes the time
@@ -94,7 +94,7 @@ class LivenessMonitor:
         if self._thread is not None:
             return
         self._stop.clear()
-        t = threading.Thread(target=self._loop, name="oracle-liveness", daemon=True)
+        t = threading.Thread(target=self._loop, name="plantclef-liveness", daemon=True)
         t.start()
         self._thread = t
 
@@ -130,7 +130,7 @@ class LivenessMonitor:
 
     def _refresh(self) -> Dict[int, RankHealth]:
         # Pick the most recent run group. Telemetry filenames are
-        # `oracle_<phase>_r<rank>_<timestamp>_<short>.jsonl`. Group by
+        # `plantclef_<phase>_r<rank>_<timestamp>_<short>.jsonl`. Group by
         # everything except the rank suffix.
         all_files = sorted(self._dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
         if not all_files:
@@ -170,7 +170,7 @@ class LivenessMonitor:
 
 # ── parsing helpers ─────────────────────────────────────────────────────────
 def _strip_rank(stem: str) -> str:
-    """``oracle_p2a_r3_2026…_ab12`` → ``oracle_p2a``"""
+    """``plantclef_p2a_r3_2026…_ab12`` → ``plantclef_p2a``"""
     parts = stem.split("_")
     out = []
     for tok in parts:
@@ -220,7 +220,7 @@ def _read_latest_heartbeat(p: Path) -> Tuple[Optional[int], Optional[datetime], 
 
 # ── CLI ─────────────────────────────────────────────────────────────────────
 def _cli() -> int:
-    p = argparse.ArgumentParser(description="ORACLE rank-liveness watchdog")
+    p = argparse.ArgumentParser(description="PLANTCLEF rank-liveness watchdog")
     p.add_argument("--watch", default="reports/telemetry",
                    help="Directory of telemetry JSONL files (default: reports/telemetry)")
     p.add_argument("--world", type=int, default=None,

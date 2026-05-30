@@ -67,7 +67,7 @@ def load_species_mapping(species_csv: Optional[Path]) -> dict[int, int]:
         return {}
 
     try:
-        # ORACLE: Ultimate Crash-Proof Loading
+        # plantclef: Ultimate Crash-Proof Loading
         # Directly read lines and extract the first integer found (handles headers and noisy lines)
         sids = []
         with open(species_csv, 'r') as f:

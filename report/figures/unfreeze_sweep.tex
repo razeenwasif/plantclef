@@ -1,0 +1,50 @@
+% Chart B: Unfreeze-N sweep (experiment 010) — illustrates the val/Kaggle inversion.
+% Source: src_experiments/010_bioclip25_end_to_end_finetune_multitask/EXPERIMENT_REPORT.md
+%         and report/analysis/kaggle_submission_metadata.csv (best-public per stage; val top-5 per checkpoint).
+\begin{tikzpicture}
+  \begin{axis}[
+      width=0.95\linewidth, height=5.4cm,
+      xlabel={Unfrozen transformer blocks},
+      ylabel={Public Macro F1},
+      ymin=0.28, ymax=0.42,
+      ytick={0.30,0.32,0.34,0.36,0.38,0.40},
+      symbolic x coords={0, 4, 8, 12, 32},
+      xtick=data,
+      xticklabel style={font=\small},
+      ylabel near ticks,
+      axis y line*=left,
+      axis x line*=bottom,
+      grid=major, grid style={dashed,gray!20},
+      enlarge x limits=0.12,
+      every axis plot/.append style={thick},
+      legend style={at={(0.02,0.98)}, anchor=north west,
+                    font=\scriptsize, draw=none, fill=white, fill opacity=0.85,
+                    text opacity=1},
+    ]
+    \addplot+[mark=*, color=blue!70!black, mark options={fill=blue!70!black}]
+      coordinates {(0,0.36197) (4,0.38333) (8,0.39140) (12,0.37479) (32,0.30118)};
+    \addlegendentry{Kaggle Macro F1}
+    \node[anchor=south, font=\scriptsize, color=blue!70!black]
+      at (axis cs:8,0.39140) {0.391};
+  \end{axis}
+  \begin{axis}[
+      width=0.95\linewidth, height=5.4cm,
+      ymin=0.90, ymax=0.95,
+      ytick={0.90,0.92,0.94},
+      ylabel={Validation top-5},
+      symbolic x coords={0, 4, 8, 12, 32},
+      xtick=\empty,
+      axis y line*=right,
+      axis x line=none,
+      ylabel near ticks,
+      enlarge x limits=0.12,
+      every axis plot/.append style={thick, densely dashed},
+      legend style={at={(0.98,0.98)}, anchor=north east,
+                    font=\scriptsize, draw=none, fill=white, fill opacity=0.85,
+                    text opacity=1},
+    ]
+    \addplot+[mark=square*, color=red!70!black, mark options={fill=red!70!black, solid}]
+      coordinates {(0,0.9214) (4,0.9323) (8,0.9364) (12,0.9400) (32,0.9339)};
+    \addlegendentry{Val top-5 (held-out single-plant)}
+  \end{axis}
+\end{tikzpicture}

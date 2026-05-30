@@ -1,0 +1,37 @@
+%%
+%% Preamble: layout tolerances, packages, and class tweaks.
+%% Loaded by main.tex immediately after \documentclass.
+\hbadness=10000
+\vbadness=10000
+\hfuzz=100pt
+\vfuzz=100pt
+
+%%
+%% Packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[section]{placeins}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+
+%% The ceurart class loads the ccicons font (via doclicense) for the CC-BY
+%% logo, which pdfTeX cannot font-expand. Disable microtype expansion
+%% (protrusion is kept) so the document compiles under pdfTeX.
+\microtypesetup{expansion=false}
+
+%% Compatibility shim: colortbl >= v1.0k references \insert@pcolumn for
+%% paragraph (p / m / b / X) columns, but array.sty < 2024 only defines
+%% \insert@column. On installations with a mixed package set (e.g. MiKTeX
+%% with colortbl 2024/10/29 v1.0k and array 2023/10/16 v2.5g) p-columns and
+%% tabularx X-columns abort with "Undefined control sequence". Alias the
+%% missing token to the equivalent older one.
+\makeatletter
+\@ifundefined{insert@pcolumn}{\let\insert@pcolumn\insert@column}{}
+\makeatother

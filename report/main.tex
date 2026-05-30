@@ -1,0 +1,60 @@
+%%
+%% Working note prepared for the CEUR-WS / CEUR-ART proceedings format.
+%% Template reference:
+%%   https://www.overleaf.com/latex/templates/template-for-submissions-to-
+%%   ceur-workshop-proceedings-ceur-ws-dot-org/wqyfdgftmcfw
+%%
+%% Document class options:
+%%   [twocolumn]  default two-column working-note layout
+%%   [sigconf]    single-column conference layout (use if desired)
+%%
+\documentclass[sigconf]{ceurart}
+
+%% Packages and layout tweaks.
+\input{preamble}
+
+\begin{document}
+
+%% Title, authors, abstract, keywords.
+\input{sections/frontmatter}
+
+\maketitle
+
+%% Body.
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/methodology}
+\input{sections/experiments}
+\input{sections/analysis}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+%% Appendix: experiment summary and development trace.
+\input{sections/appendix_experiment_summary}
+%% Appendix (staging): phenology full method, long-tail capping detail, and
+%% considered-but-not-implemented directions, relocated out of Method (Phase 1).
+\input{sections/appendix_development_trace}
+
+%%
+%% Acknowledgments
+\begin{acknowledgments}
+  This work was conducted as part of the COMP3242 Deep Learning course at the Australian National University. We gratefully acknowledge Google's TPU Research Cloud (TRC) program, which provided the Cloud TPU resources that supported part of this research.
+\end{acknowledgments}
+
+%%
+%% Declaration on Generative AI
+\begin{aideclaration}
+  During the preparation of this work, the authors used generative AI tools to assist with code development, debugging, and language editing. After using these tools, the authors reviewed and edited the content as needed and take full responsibility for the publication's content.
+\end{aideclaration}
+
+%% Flush any floats still queued by the appendix before the bibliography
+%% begins, so no figure or table is pushed past the references.
+\FloatBarrier
+
+%%
+%% Bibliography. The canonical ceurart.cls already sets
+%% \bibliographystyle{elsarticle-num-names}; calling it again here would
+%% raise BibTeX's "Illegal, another \bibstyle command" error.
+\bibliography{plantclef-refs}
+
+\end{document}

@@ -11,7 +11,7 @@ from .layers.distillation import BotanicalTraitHead
 
 try:
     import plantclef_ext
-    # ORACLE: Tell Torch Dynamo these C++ kernels are safe for CUDA Graphs
+    # plantclef: Tell Torch Dynamo these C++ kernels are safe for CUDA Graphs
     if hasattr(torch, 'compiler'):
         torch.compiler.allow_in_graph(plantclef_ext.fused_gfam_projection)
         torch.compiler.allow_in_graph(plantclef_ext.fused_aggregate_tiles)
@@ -50,7 +50,7 @@ class ResidualMLP(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # ORACLE: Match input precision to model weights (BFloat16)
+        # plantclef: Match input precision to model weights (BFloat16)
         x = x.to(dtype=self.fc1.weight.dtype)
         x = self.gelu(self.ln1(self.fc1(x)))
         x = x + self.res_block(x)
@@ -100,7 +100,7 @@ class PlantEnsemble(nn.Module):
         else:
             self.use_regions = use_region_features
         
-        # ORACLE: Extreme Blackwell Optimization (FP8 + Fused Layers)
+        # plantclef: Extreme Blackwell Optimization (FP8 + Fused Layers)
         # We use TE.Linear with FP8 metadata enabled to saturate the sm_120 units.
         if config.USE_FP8 and HAS_TE and torch.cuda.is_available():
             # Use TE.Linear with optimized initialization for Blackwell
@@ -134,7 +134,7 @@ class PlantEnsemble(nn.Module):
         
         # 2. Heads
         self.trait_head = BotanicalTraitHead(in_features=self.fusion_dim)
-        # ORACLE: Adaptive Phase 1 Head. 
+        # plantclef: Adaptive Phase 1 Head. 
         # During p1, it uses config.PCA_COMPONENTS. During p2a (warmup), it uses total_input_dim.
         self.phase1_head = ResidualMLP(in_features=config.PCA_COMPONENTS, hidden_features=2048, out_features=num_classes)
         self.warmup_head = ResidualMLP(in_features=self.total_input_dim, hidden_features=2048, out_features=num_classes)
@@ -153,7 +153,7 @@ class PlantEnsemble(nn.Module):
         self._init_custom_weights()
 
     def _register_surgery_hooks(self):
-        """ORACLE: Register pre-hooks for gating surgery and dynamic pos_embed interpolation."""
+        """PLANTCLEF: Register pre-hooks for gating surgery and dynamic pos_embed interpolation."""
         def _surgery_hook(state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs):
             model_sd = self.state_dict()
             
@@ -236,7 +236,7 @@ class PlantEnsemble(nn.Module):
         is_dist = dist.is_initialized()
         rank = int(os.environ.get("RANK", 0))
         
-        # ORACLE: In isolated mode (CUDA_VISIBLE_DEVICES), each process 
+        # plantclef: In isolated mode (CUDA_VISIBLE_DEVICES), each process 
         # has its own VRAM space, so all ranks load their own backbones on "device 0".
         print(f"[Surgery] Rank {rank} loading backbones on isolated device...")
         from .bioclip import PlantBioCLIP
@@ -250,7 +250,7 @@ class PlantEnsemble(nn.Module):
         self.dinov3   = PlantViTBackbone(model_name=self.dinov3_name, input_res=self.input_res).to(device).to(memory_format=torch.channels_last)
         self.convnext = PlantConvNeXt(model_name=self.convnext_name, input_res=self.input_res).to(device).to(memory_format=torch.channels_last)
 
-        # ORACLE: Inherit current training state.
+        # plantclef: Inherit current training state.
         # This is critical because ensure_backbones_loaded is often called lazily
         # during the first forward pass, after .eval() has already been called.
         for backbone in [self.bioclip, self.dinov3, self.convnext]:
@@ -325,7 +325,7 @@ class PlantEnsemble(nn.Module):
                         print(f"[Warning] Failed to load Zero-Shot anchors: {e}. Disabling Zero-Shot.")
                     self.use_zs = False
             else:
-                # ORACLE: Essential for CI environments where the weight files are missing
+                # plantclef: Essential for CI environments where the weight files are missing
                 if rank == 0:
                     print(f"[Zero-Shot] Anchor file not found at {final_path}. Disabling Zero-Shot.")
                 self.use_zs = False
@@ -345,7 +345,7 @@ class PlantEnsemble(nn.Module):
         Phase-aware deterministic forward pass.
         Ensures a static Autograd graph for DeepSpeed ZeRO-2 stability.
         """
-        # ORACLE: Logic Isolation. 
+        # plantclef: Logic Isolation. 
         # If backbones are frozen and we are in 2D mode, we treat the model 
         # as a PURE head to keep the gradient buckets aligned.
         if x.dim() == 2:
@@ -359,22 +359,22 @@ class PlantEnsemble(nn.Module):
         
         ctx = torch.no_grad() if self._backbones_frozen else torch.enable_grad()
         
-        # --- 2. Sequential Backbone Forward (ORACLE: Blackwell FA-Accelerated) ---
-        self.ensure_backbones_loaded() # ORACLE: Safety check
+        # --- 2. Sequential Backbone Forward (PLANTCLEF: Blackwell FA-Accelerated) ---
+        self.ensure_backbones_loaded() # plantclef: Safety check
         device_type = 'cuda' if x.is_cuda else 'cpu'
         
         try:
             import transformer_engine.pytorch as te
-            # ORACLE: Enabling FP8-Fused Attention specifically for Blackwell
+            # plantclef: Enabling FP8-Fused Attention specifically for Blackwell
             # This provides FA3-level performance using the stable TE backend.
             fp8_ctx = te.fp8_autocast(enabled=True) if device_type == 'cuda' else torch.no_grad()
         except ImportError:
             fp8_ctx = torch.cuda.amp.autocast(enabled=False) if device_type == 'cuda' else torch.no_grad()
 
-        # ORACLE: CPU Autocast only supports bfloat16/float16. Use float32 (enabled=False) for CPU stability in tests.
+        # plantclef: CPU Autocast only supports bfloat16/float16. Use float32 (enabled=False) for CPU stability in tests.
         autocast_enabled = (device_type == 'cuda')
         with ctx, fp8_ctx, torch.amp.autocast(device_type, enabled=autocast_enabled, dtype=torch.bfloat16):
-            # ORACLE: Parallel Stream Orchestration (Blackwell Optimized)
+            # plantclef: Parallel Stream Orchestration (Blackwell Optimized)
             # We launch all three experts on separate streams to saturate the SMs.
             # CRITICAL: We DISABLE this if torch.compile is active, as the compiler 
             # manages its own streams and manual switching causes cuDNN Mismatch.
@@ -438,7 +438,7 @@ class PlantEnsemble(nn.Module):
         feat_dino = F.normalize(feat_dino.to(x.device), p=2, dim=1, eps=1e-8)
         feat_conv = F.normalize(feat_conv.to(x.device), p=2, dim=1, eps=1e-8)
 
-        # ORACLE: Global Sync Barrier
+        # plantclef: Global Sync Barrier
         # Ensures that features from asynchronous backbone streams are fully 
         # visible to the TransformerEngine gating network.
         # We only synchronize if NOT capturing a CUDA Graph (inference/compile mode)
@@ -447,7 +447,7 @@ class PlantEnsemble(nn.Module):
 
         fused_raw = torch.cat([feat_bio, feat_dino, feat_conv], dim=1).contiguous()
         
-        # ORACLE: Explicitly ensure CUDA device placement
+        # plantclef: Explicitly ensure CUDA device placement
         # Standard .to(device) can be a no-op; we use .cuda() for TE requirements
         if feat_bio.is_cuda:
             fused_raw = fused_raw.cuda()
@@ -456,7 +456,7 @@ class PlantEnsemble(nn.Module):
         # Randomly zero out one entire backbone during training to force 
         # the gating network to handle missing experts and learn independence.
         if self.training:
-            # ORACLE: Dynamo-safe expert dropout (no .item() calls)
+            # plantclef: Dynamo-safe expert dropout (no .item() calls)
             if torch.rand(1, device=x.device) < 0.1:
                 drop_idx = torch.randint(0, 3, (1,), device=x.device)
                 mask = torch.ones(3, device=x.device)
@@ -469,7 +469,7 @@ class PlantEnsemble(nn.Module):
                 fused_raw = torch.cat([feat_bio, feat_dino, feat_conv], dim=1)
 
         g_logits = self.gating_network(fused_raw)
-        # ORACLE: Handle FP8 padding for gating (8 outputs -> 3 weights)
+        # plantclef: Handle FP8 padding for gating (8 outputs -> 3 weights)
         if g_logits.shape[1] == 8:
             g_logits = g_logits[:, :3]
             
@@ -498,7 +498,7 @@ class PlantEnsemble(nn.Module):
             logit_mean = species_logits.mean(dim=1, keepdim=True)
             logit_std  = species_logits.std(dim=1, keepdim=True)
             
-        # ORACLE: Handle zero-variance logits (common in empty CI environments)
+        # plantclef: Handle zero-variance logits (common in empty CI environments)
         # If std is zero, we add a tiny bit of noise to allow tests to pass
         if logit_std.mean() < 1e-8:
              species_logits = species_logits + torch.randn_like(species_logits) * 0.1
@@ -517,7 +517,7 @@ class PlantEnsemble(nn.Module):
                 zs_std  = zs_logits.std(dim=1, keepdim=True) + 1e-5
             zs_logits = (zs_logits - zs_mean) / zs_std
             
-            # ORACLE: Handle Class Alignment (7806 -> 7808)
+            # plantclef: Handle Class Alignment (7806 -> 7808)
             if zs_logits.shape[1] < species_logits.shape[1]:
                 padding = torch.zeros((zs_logits.shape[0], species_logits.shape[1] - zs_logits.shape[1]), 
                                       device=zs_logits.device, dtype=zs_logits.dtype)
@@ -525,12 +525,12 @@ class PlantEnsemble(nn.Module):
                 
             species_logits = (1.0 - self.zs_weight) * species_logits + self.zs_weight * zs_logits.to(species_logits.dtype)
 
-        # ORACLE: Prior-Shift Compensation (Post-hoc Logit Adjustment)
+        # plantclef: Prior-Shift Compensation (Post-hoc Logit Adjustment)
         if logit_adj is not None:
             species_logits = species_logits + logit_adj.to(species_logits.dtype)
 
         if self.training:
-            # ORACLE: Only return trait_head if it exists
+            # plantclef: Only return trait_head if it exists
             if hasattr(self, 'trait_head') and self.trait_head is not None:
                 return species_logits, self.trait_head(fused_proj)
             return species_logits
@@ -577,7 +577,7 @@ class PlantEnsemble(nn.Module):
         swap_for_fused(self.dinov3)
         swap_for_fused(self.convnext)
         
-        self.set_grad_checkpointing(False) # ORACLE: Disabled for 30-min Epoch Speed (At 224px, BS128 fits)
+        self.set_grad_checkpointing(False) # plantclef: Disabled for 30-min Epoch Speed (At 224px, BS128 fits)
         self._lora_applied, self._backbones_frozen = True, False
 
     @torch.no_grad()
@@ -658,7 +658,7 @@ class PlantEnsemble(nn.Module):
                 self.orchestrator = None
 
     def load_state_dict(self, state_dict: dict, strict: bool = True):
-        """ORACLE: Gating Surgery (3 -> 8 outputs for Blackwell FP8)."""
+        """PLANTCLEF: Gating Surgery (3 -> 8 outputs for Blackwell FP8)."""
         target_keys = ["gating_network.3.weight", "gating_network.3.bias"]
         model_keys = self.state_dict().keys()
         

@@ -1,0 +1,129 @@
+% Anchor inference pipeline figure for archive/report/main.tex (CEUR-ART)
+%
+% Headline submission (public Macro F1 0.41826). Left-side dashed branches
+% are the three pivots (cRT, genus rerank, phenology) that did NOT improve
+% over the anchor. The richer Pivot 3 scaffold is shown separately in
+% figures/phenology_pipeline.tex.
+%
+% Required preamble in the host document:
+%   \usepackage{tikz}
+%   \usetikzlibrary{positioning,arrows.meta,calc,fit,backgrounds,shapes.geometric}
+
+\begin{tikzpicture}[
+  font=\sffamily\footnotesize,
+  node distance=8pt and 14pt,
+  >={Stealth[length=4pt,width=4pt]},
+  every node/.style={transform shape},
+  stage/.style={
+    draw=black!75, line width=0.4pt, rounded corners=2.4pt, fill=black!3,
+    minimum width=58mm, minimum height=11.5mm, align=center, inner sep=4pt
+  },
+  io/.style={
+    draw=black!75, line width=0.4pt, rounded corners=2.4pt, fill=white,
+    minimum width=58mm, minimum height=9.5mm, align=center, inner sep=4pt
+  },
+  emph/.style={
+    draw=black!75, line width=0.45pt, rounded corners=2.4pt, fill=black!8,
+    minimum width=58mm, minimum height=13mm, align=center, inner sep=4pt
+  },
+  scope/.style={
+    draw=black!55, line width=0.3pt, dashed, rounded corners=3pt,
+    fill=black!0, inner sep=9pt
+  },
+  scopelabel/.style={
+    fill=white, inner sep=2pt,
+    font=\sffamily\scriptsize\itshape, text=black!65
+  },
+  pivot/.style={
+    draw=black!55, line width=0.35pt, dashed, rounded corners=2.4pt,
+    minimum width=56mm, align=center, inner sep=4pt,
+    font=\sffamily\scriptsize, text=black!75
+  },
+  flow/.style={->, line width=0.5pt, draw=black!75},
+  flowdashed/.style={->, line width=0.4pt, draw=black!50, dashed},
+  param/.style={font=\sffamily\scriptsize, text=black!55, align=left, inner sep=1pt},
+]
+
+% ── Main column (top to bottom) ──────────────────────────────────────────
+\node[io]    (img)    {Quadrat image \\
+                       \small\itshape (raw RGB, variable size, $\sim$1100--4100\,px/side)};
+\node[stage] (tiles)  [below=of img]    {$4\times4$ tile grid \\
+                                          {\scriptsize 16 non-overlapping tiles}};
+\node[emph]  (fwd)    [below=of tiles]  {BioCLIP 2.5 ViT-H/14 \\
+                                          {\scriptsize 28 frozen blocks + last 4 blocks, LN, proj.\ unfrozen} \\
+                                          {\scriptsize forward at $224$\,px \textbf{and} $336$\,px}};
+\node[stage] (agg)    [below=of fwd]    {Per-tile softmax $\rightarrow$ mean \\
+                                          {\scriptsize unweighted mean over 16 tiles}};
+\node[stage] (xres)   [below=of agg]    {Cross-resolution averaging \\
+                                          {\scriptsize mean of $224$\,px and $336$\,px probabilities}};
+\node[stage] (la)     [below=of xres]   {Class-prior logit adjustment \\
+                                          {\scriptsize $\ell'_s = \ell_s - \tau \log \pi_s$, \quad $\tau{=}0.25$}};
+\node[stage] (thr)    [below=of la]     {Adaptive threshold \\
+                                          {\scriptsize emit $\{s : \bar p(s) > T\}$, \quad $T{=}0.03$, \quad $k \in [2, 10]$}};
+\node[io]    (out)    [below=of thr]    {Species set \\
+                                          \small\itshape (public Macro-F1 $0.41826$)};
+
+% ── Sequential arrows ────────────────────────────────────────────────────
+\draw[flow] (img)   -- (tiles);
+\draw[flow] (tiles) -- (fwd);
+\draw[flow] (fwd)   -- (agg);
+\draw[flow] (agg)   -- (xres);
+\draw[flow] (xres)  -- (la);
+\draw[flow] (la)    -- (thr);
+\draw[flow] (thr)   -- (out);
+
+% ── Pivot branches on the left (dashed) ──────────────────────────────────
+\node[pivot, left=22mm of fwd] (pivot1)
+  {\textbf{Pivot 1: cRT} \\
+   frozen $\{$BC2.5, DINOv3, ConvNeXt-V2-L$\}$ $\rightarrow$ MLP head \\
+   mixed at $w{=}0.3$, \quad $\Delta{=}-0.036$};
+\draw[flowdashed] (pivot1.east) -- (fwd.west);
+
+\node[pivot, left=22mm of la] (pivot2)
+  {\textbf{Pivot 2: genus rerank} \\
+   $+\,\alpha_g \log P_{\text{gen}}(g(s))$ at $\alpha_g{=}0.1$ \\
+   $\Delta{=}-0.006$};
+\draw[flowdashed] (pivot2.east) -- (la.west);
+
+\node[pivot, left=22mm of thr] (pivot3)
+  {\textbf{Pivot 3: seasonal phenology} \\
+   $+\,\beta \log P(s \mid d)$ from GBIF, \, $\beta{=}1.0$ \\
+   (full scaffold differs; see Fig.~\ref{fig:phenology_pipeline}) \\
+   $\Delta{=}-0.005$};
+\draw[flowdashed] (pivot3.east) -- (thr.west);
+
+% ── Scope groupings on the right (background) ───────────────────────────
+\begin{pgfonlayer}{background}
+  \node[scope, fit=(tiles)] (s-input) {};
+  \node[scopelabel, anchor=west] at ($(s-input.north east)+(2pt,-7pt)$) {Pre-processing};
+
+  \node[scope, fit=(fwd) (agg) (xres)] (s-model) {};
+  \node[scopelabel, anchor=west] at ($(s-model.north east)+(2pt,-7pt)$) {Visual posterior};
+
+  \node[scope, fit=(la) (thr)] (s-post) {};
+  \node[scopelabel, anchor=west] at ($(s-post.north east)+(2pt,-7pt)$) {Post-processing};
+\end{pgfonlayer}
+
+% ── Side-band parameter callouts on the right ───────────────────────────
+\node[param, right=22mm of tiles.east, anchor=west] (p1)
+  {$4\times4$ grid, no overlap};
+\node[param, right=22mm of fwd.east,   anchor=west] (p2)
+  {\textbf{2 forwards} per tile \\ (resolution ensemble)};
+\node[param, right=22mm of agg.east,   anchor=west] (p3)
+  {softmax mean (no weighting)};
+\node[param, right=22mm of xres.east,  anchor=west] (p4)
+  {$\bar p \in \mathbb{R}^{7806}$};
+\node[param, right=22mm of la.east,    anchor=west] (p5)
+  {Laplace-smoothed train prior};
+\node[param, right=22mm of thr.east,   anchor=west] (p6)
+  {$|S| \in [2, 10]$};
+
+% Faint connectors between side band and main column
+\draw[flowdashed] (tiles.east) -- (p1.west);
+\draw[flowdashed] (fwd.east)   -- (p2.west);
+\draw[flowdashed] (agg.east)   -- (p3.west);
+\draw[flowdashed] (xres.east)  -- (p4.west);
+\draw[flowdashed] (la.east)    -- (p5.west);
+\draw[flowdashed] (thr.east)   -- (p6.west);
+
+\end{tikzpicture}

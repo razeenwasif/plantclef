@@ -1,0 +1,9 @@
+[package]
+name = "train_indexer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rayon = "1.7"
+indicatif = "0.17"
+anyhow = "1.0"

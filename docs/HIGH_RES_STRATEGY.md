@@ -1,4 +1,4 @@
-# ORACLE: High-Resolution Expert Strategy
+# plantclef: High-Resolution Expert Strategy
 
 This document outlines the "Diversity + Detail" ensembling strategy used to maximize performance for the PlantCLEF 2026 challenge.
 
