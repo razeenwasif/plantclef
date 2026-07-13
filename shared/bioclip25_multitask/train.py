@@ -93,6 +93,95 @@ DEFAULT_OUTPUT_DIR = "./outputs/train"
 
 
 # ---------------------------------------------------------------------------
+# Telemetry (optional Nexus integration)
+# ---------------------------------------------------------------------------
+# Soft import. When launched under the Nexus pod-agent (via src/nexus_entry.py)
+# the repo root is on PYTHONPATH and src.training.telemetry is importable, so
+# structured JSONL events stream to reports/telemetry/<run_id>.jsonl for the
+# run_monitor to project into Firestore. Outside Nexus (telemetry package or
+# torch unavailable) we fall back to a no-op stub so the trainer runs
+# standalone, unchanged.
+try:
+    from src.training.telemetry import telemetry, start_heartbeat  # type: ignore
+except ImportError:
+    # The package import above runs src/training/__init__.py, which pulls in
+    # heavy siblings (losses/cache/loops/…). On a box missing torch — or any
+    # optional dep one of those siblings needs — it raises ImportError even
+    # though telemetry.py itself is stdlib-only (torch is imported lazily).
+    # Load telemetry.py directly by file path before giving up, so a Nexus run
+    # does not silently lose its event stream and look dead in the dashboard.
+    try:
+        import importlib.util as _ilu
+
+        _tele_path = (
+            Path(__file__).resolve().parents[2] / "src" / "training" / "telemetry.py"
+        )
+        _spec = _ilu.spec_from_file_location("plantclef_telemetry_fallback", _tele_path)
+        if _spec is None or _spec.loader is None:
+            raise ImportError(f"cannot load telemetry from {_tele_path}")
+        _tele_mod = _ilu.module_from_spec(_spec)
+        # Register before exec: the dataclasses in telemetry.py resolve their
+        # annotations via sys.modules under `from __future__ import annotations`.
+        sys.modules[_spec.name] = _tele_mod
+        _spec.loader.exec_module(_tele_mod)
+        telemetry = _tele_mod.telemetry  # type: ignore
+        start_heartbeat = _tele_mod.start_heartbeat  # type: ignore
+    except Exception:
+        class _NoopTelemetry:
+            def bind(self, *args, **kwargs):
+                return None
+
+            def emit(self, *args, **kwargs):
+                return None
+
+            def start_heartbeat(self, *args, **kwargs):
+                return None
+
+        telemetry = _NoopTelemetry()  # type: ignore
+
+        def start_heartbeat(*args, **kwargs):  # type: ignore
+            return None
+
+
+def _git_capture(cwd: Path) -> dict:
+    """Best-effort git state for the run.start snapshot. Silent on failure."""
+    import subprocess
+
+    def _run(cmd_args):
+        try:
+            out = subprocess.check_output(
+                ["git", "-C", str(cwd), *cmd_args],
+                stderr=subprocess.DEVNULL, timeout=2.0,
+            )
+            return out.decode("utf-8", "replace").strip() or None
+        except Exception:
+            return None
+
+    git_hash = _run(["rev-parse", "HEAD"])
+    if git_hash is None:
+        return {"git_hash": None, "dirty_diff_summary": None}
+    shortstat = _run(["diff", "--shortstat", "HEAD"])
+    return {"git_hash": git_hash, "dirty_diff_summary": shortstat or None}
+
+
+def _env_hash() -> str:
+    """Short stable hash over interpreter + installed package list."""
+    import hashlib
+    import platform
+    try:
+        import importlib.metadata as md
+        dists = sorted(
+            f"{d.metadata['Name']}=={d.version}"
+            for d in md.distributions()
+            if d.metadata.get("Name")
+        )
+    except Exception:
+        dists = []
+    blob = "\n".join([platform.python_version(), platform.machine(), *dists])
+    return hashlib.sha256(blob.encode()).hexdigest()[:12]
+
+
+# ---------------------------------------------------------------------------
 # Cached-features dataset (head-only fast path)
 # ---------------------------------------------------------------------------
 
@@ -420,6 +509,74 @@ def main() -> None:
     else:
         device = resolve_device(args.device)
         rank   = 0
+
+    # ------------------------------------------------------------------
+    # Seed (Nexus integration: spec.seed flows in as PLANTCLEF_SEED via the
+    # shim). Seed python/numpy/torch RNGs so two dashboard runs differing only
+    # in seed are genuinely different jobs, and use it as the default for
+    # --val-seed / --cap-seed unless the caller pinned those explicitly.
+    # ------------------------------------------------------------------
+    _env_seed = os.environ.get("PLANTCLEF_SEED")
+    if _env_seed:
+        try:
+            seed_val = int(_env_seed)
+        except ValueError:
+            seed_val = None
+        if seed_val is not None:
+            import random as _seed_random
+            _seed_random.seed(seed_val)
+            try:
+                import numpy as _np
+                _np.random.seed(seed_val % (2 ** 32))
+            except Exception:
+                pass
+            torch.manual_seed(seed_val)
+            torch.cuda.manual_seed_all(seed_val)
+            if not any(a == "--val-seed" or a.startswith("--val-seed=") for a in sys.argv):
+                args.val_seed = seed_val
+            if not any(a == "--cap-seed" or a.startswith("--cap-seed=") for a in sys.argv):
+                args.cap_seed = seed_val
+
+    # ------------------------------------------------------------------
+    # Telemetry bind + run.start (Nexus integration; no-op standalone)
+    # ------------------------------------------------------------------
+    # Only stream telemetry when actually launched under Nexus. The shim
+    # (src/nexus_entry.py) always sets PLANTCLEF_RUN_ID_TEMPLATE and
+    # PLANTCLEF_TELEMETRY=file; when neither is present we default the sink to
+    # 'none' so a standalone `torchrun train.py` stays side-effect free — no
+    # reports/telemetry/*.jsonl written relative to the launch dir, no atexit
+    # handler, no heartbeat thread, and no startup crash if the cwd is
+    # unwritable. The whole block is also guarded so a sink failure can never
+    # abort training (telemetry is best-effort by design).
+    if not (os.environ.get("PLANTCLEF_RUN_ID_TEMPLATE")
+            or os.environ.get("PLANTCLEF_TELEMETRY")):
+        os.environ["PLANTCLEF_TELEMETRY"] = "none"
+    try:
+        telemetry.bind(
+            run_id=None,
+            rank=rank,
+            world=get_world_size(),
+            phase=os.environ.get("PLANTCLEF_PHASE") or None,
+            host_id=os.environ.get("CLUSTER_HOST_ID") or None,
+        )
+        if is_main_process():
+            import platform
+            import shlex
+            _repo_root = Path(__file__).resolve().parents[2]
+            telemetry.emit("run.start", snapshot={
+                **_git_capture(_repo_root),
+                "env_hash":       _env_hash(),
+                "python_version": platform.python_version(),
+                "config_yaml":    None,
+                "command":        " ".join(shlex.quote(a) for a in sys.argv),
+                "lr":             args.head_lr,
+                "steps":          None,
+                "epochs":         args.epochs,
+            })
+        start_heartbeat(float(os.environ.get("PLANTCLEF_HEARTBEAT_INTERVAL", "15")))
+    except Exception as _tele_exc:  # pragma: no cover — telemetry must never stop a run
+        print(f"[train] telemetry init failed (continuing without telemetry): {_tele_exc}",
+              file=sys.stderr)
 
     out_dir  = Path(args.output_dir)
     ckpt_dir = out_dir / "checkpoints"
@@ -809,179 +966,202 @@ def main() -> None:
     # ------------------------------------------------------------------
     t_total = time.perf_counter()
 
-    for epoch in range(start_epoch, args.epochs):
-        if train_sampler is not None:
-            train_sampler.set_epoch(epoch)
+    # Wrap the training body so the trainer always reports a terminal
+    # run.end: status="ok" on clean completion, status="failed" on any
+    # exception (which is re-raised so the process exit code stays
+    # non-zero for the Nexus spawner's failure detection).
+    try:
+        for epoch in range(start_epoch, args.epochs):
+            if train_sampler is not None:
+                train_sampler.set_epoch(epoch)
 
-        model.train()
-        epoch_loss = 0.0
-        n_batches  = 0
-        epoch_t    = time.perf_counter()
-        optimizer.zero_grad()
+            model.train()
+            epoch_loss = 0.0
+            n_batches  = 0
+            epoch_t    = time.perf_counter()
+            optimizer.zero_grad()
 
-        for step, batch in enumerate(train_loader):
-            inputs, sp_lbl, gen_lbl, fam_lbl = batch
+            for step, batch in enumerate(train_loader):
+                inputs, sp_lbl, gen_lbl, fam_lbl = batch
 
-            inputs  = inputs.to(device, non_blocking=True)
-            sp_lbl  = sp_lbl.to(device, non_blocking=True)
-            gen_lbl = gen_lbl.to(device, non_blocking=True)
-            fam_lbl = fam_lbl.to(device, non_blocking=True)
+                inputs  = inputs.to(device, non_blocking=True)
+                sp_lbl  = sp_lbl.to(device, non_blocking=True)
+                gen_lbl = gen_lbl.to(device, non_blocking=True)
+                fam_lbl = fam_lbl.to(device, non_blocking=True)
 
-            with amp_autocast(device, amp_enabled, amp_dtype):
-                if use_feature_cache:
-                    raw = model.module if is_ddp else model
-                    outputs = raw.forward_heads(inputs)
-                else:
-                    outputs = model(inputs)
-                loss, loss_parts = compute_multitask_loss(
-                    outputs,
-                    (sp_lbl, gen_lbl, fam_lbl),
-                    criterion,
+                with amp_autocast(device, amp_enabled, amp_dtype):
+                    if use_feature_cache:
+                        raw = model.module if is_ddp else model
+                        outputs = raw.forward_heads(inputs)
+                    else:
+                        outputs = model(inputs)
+                    loss, loss_parts = compute_multitask_loss(
+                        outputs,
+                        (sp_lbl, gen_lbl, fam_lbl),
+                        criterion,
+                    )
+                    loss = loss / args.grad_accum_steps
+
+                scaler.scale(loss).backward()
+
+                is_update_step = (
+                    (step + 1) % args.grad_accum_steps == 0
+                    or (step + 1) == len(train_loader)
                 )
-                loss = loss / args.grad_accum_steps
+                if is_update_step:
+                    scaler.unscale_(optimizer)
+                    nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+                    scaler.step(optimizer)
+                    scaler.update()
+                    optimizer.zero_grad()
+                    scheduler.step()
+                    opt_step += 1
 
-            scaler.scale(loss).backward()
+                epoch_loss += loss_parts["total_loss"]
+                n_batches  += 1
 
-            is_update_step = (
-                (step + 1) % args.grad_accum_steps == 0
-                or (step + 1) == len(train_loader)
-            )
-            if is_update_step:
-                scaler.unscale_(optimizer)
-                nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-                scaler.step(optimizer)
-                scaler.update()
-                optimizer.zero_grad()
-                scheduler.step()
-                opt_step += 1
+                if is_main_process() and (step + 1) % args.log_every == 0:
+                    avg     = epoch_loss / n_batches
+                    elapsed = time.perf_counter() - epoch_t
+                    lr_vals = [f"{g['lr']:.2e}" for g in optimizer.param_groups]
+                    logger.info(
+                        f"[{epoch+1}/{args.epochs}] step {step+1}/{len(train_loader)}  "
+                        f"loss={avg:.4f}  lr={'/'.join(lr_vals)}  t={elapsed:.0f}s"
+                    )
+                    # opt_step is the monotonically-increasing global step.
+                    telemetry.emit("step", step=opt_step, loss=float(avg))
 
-            epoch_loss += loss_parts["total_loss"]
-            n_batches  += 1
+            avg_loss_t = torch.tensor(epoch_loss / max(n_batches, 1), device=device)
+            avg_loss   = all_reduce_mean(avg_loss_t).item()
+            epoch_secs = time.perf_counter() - epoch_t
+            head_lr    = optimizer.param_groups[-1]["lr"]
 
-            if is_main_process() and (step + 1) % args.log_every == 0:
-                avg     = epoch_loss / n_batches
-                elapsed = time.perf_counter() - epoch_t
-                lr_vals = [f"{g['lr']:.2e}" for g in optimizer.param_groups]
-                logger.info(
-                    f"[{epoch+1}/{args.epochs}] step {step+1}/{len(train_loader)}  "
-                    f"loss={avg:.4f}  lr={'/'.join(lr_vals)}  t={elapsed:.0f}s"
-                )
-
-        avg_loss_t = torch.tensor(epoch_loss / max(n_batches, 1), device=device)
-        avg_loss   = all_reduce_mean(avg_loss_t).item()
-        epoch_secs = time.perf_counter() - epoch_t
-        head_lr    = optimizer.param_groups[-1]["lr"]
-
-        if is_main_process():
-            logger.info(
-                f"Epoch {epoch+1}/{args.epochs}  "
-                f"train_loss={avg_loss:.4f}  lr={head_lr:.2e}  "
-                f"time={epoch_secs:.0f}s"
-            )
-
-        # ------------------------------------------------------------------
-        # Validation  (all ranks participate to avoid NCCL desync)
-        # ------------------------------------------------------------------
-        val_metrics: dict = {}
-        if (epoch + 1) % args.val_every == 0 and len(val_ds) > 0:
-            logger.warning(f"[rank{rank}] entering validation epoch {epoch+1}")
-            eval_model  = model.module if is_ddp else model
-            val_metrics = validate(
-                eval_model, val_loader, device, amp_enabled, amp_dtype,
-                is_ddp=is_ddp, rank=rank,
-                from_features=use_feature_cache,
-            )
-            logger.warning(f"[rank{rank}] finished validation epoch {epoch+1}")
             if is_main_process():
                 logger.info(
-                    f"  val_loss={val_metrics['val_loss']:.4f}  "
-                    f"top1={val_metrics['top1_acc']:.4f}  "
-                    f"top5={val_metrics['top5_acc']:.4f}  "
-                    f"n={val_metrics['n_val']:,}"
+                    f"Epoch {epoch+1}/{args.epochs}  "
+                    f"train_loss={avg_loss:.4f}  lr={head_lr:.2e}  "
+                    f"time={epoch_secs:.0f}s"
                 )
-                for level in ["genus", "family"]:
-                    k = f"{level}_acc"
-                    if k in val_metrics:
-                        logger.info(f"    {level}_acc={val_metrics[k]:.4f}")
+                # Always emit one `step` per epoch, regardless of --log-every
+                # cadence. An epoch with fewer batches than log_every (e.g.
+                # --smoke-test) would otherwise emit zero `step` events, and
+                # run_monitor drops the following validation.end until it has
+                # seen a step — leaving the dashboard metrics chart empty for a
+                # run that actually completed. Harmless to repeat the last step.
+                telemetry.emit("step", step=opt_step, loss=float(avg_loss))
+
+            # ------------------------------------------------------------------
+            # Validation  (all ranks participate to avoid NCCL desync)
+            # ------------------------------------------------------------------
+            val_metrics: dict = {}
+            if (epoch + 1) % args.val_every == 0 and len(val_ds) > 0:
+                logger.warning(f"[rank{rank}] entering validation epoch {epoch+1}")
+                eval_model  = model.module if is_ddp else model
+                val_metrics = validate(
+                    eval_model, val_loader, device, amp_enabled, amp_dtype,
+                    is_ddp=is_ddp, rank=rank,
+                    from_features=use_feature_cache,
+                )
+                logger.warning(f"[rank{rank}] finished validation epoch {epoch+1}")
+                if is_main_process():
+                    logger.info(
+                        f"  val_loss={val_metrics['val_loss']:.4f}  "
+                        f"top1={val_metrics['top1_acc']:.4f}  "
+                        f"top5={val_metrics['top5_acc']:.4f}  "
+                        f"n={val_metrics['n_val']:,}"
+                    )
+                    for level in ["genus", "family"]:
+                        k = f"{level}_acc"
+                        if k in val_metrics:
+                            logger.info(f"    {level}_acc={val_metrics[k]:.4f}")
+                    telemetry.emit("validation.end", acc=val_metrics["top1_acc"])
+
+            # ------------------------------------------------------------------
+            # Checkpoint + metrics
+            # ------------------------------------------------------------------
+            if is_main_process():
+                entry = {
+                    "epoch":      epoch + 1,
+                    "train_loss": round(avg_loss, 6),
+                    "head_lr":    round(head_lr, 10),
+                    "epoch_secs": round(epoch_secs, 1),
+                    "opt_step":   opt_step,
+                    **val_metrics,
+                }
+                history.append(entry)
+                save_json({"history": history}, str(out_dir / "metrics.json"))
+                append_metrics_csv(entry, str(out_dir / "metrics.csv"))
+
+                is_best = val_metrics.get("top5_acc", 0.0) > best_top5
+                if is_best:
+                    best_top5 = val_metrics["top5_acc"]
+                    logger.info(f"  New best top5_acc: {best_top5:.4f}")
+
+                raw_save   = model.module if is_ddp else model
+                ckpt_state = {
+                    "epoch":                epoch,
+                    "model_state_dict":     raw_save.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "scheduler_state_dict": scheduler.state_dict(),
+                    "scaler_state_dict":    scaler.state_dict(),
+                    "metrics":              entry,
+                    "config":               config,
+                    "idx_to_species":       idx_to_species,
+                    "encoders":             encoders,
+                }
+
+                if args.no_epoch_snapshots:
+                    # Scout policy: only best.pt (when val improves) + last.pt.
+                    # Net writes per run: 2 files instead of N epoch snapshots.
+                    if is_best:
+                        save_checkpoint(
+                            ckpt_state, path=str(ckpt_dir / "best.pt"),
+                        )
+                elif (epoch + 1) % args.save_every == 0:
+                    save_checkpoint(
+                        ckpt_state,
+                        path=str(ckpt_dir / f"epoch_{epoch+1:03d}.pt"),
+                        is_best=is_best,
+                        best_path=str(ckpt_dir / "best.pt"),
+                    )
+                save_checkpoint(ckpt_state, path=str(ckpt_dir / "last.pt"))
+                telemetry.emit("checkpoint.save",
+                               path=str((ckpt_dir / "last.pt").resolve()),
+                               epoch=epoch + 1)
+
+                if use_wandb:
+                    import wandb
+                    wandb.log({"train_loss": avg_loss, **val_metrics}, step=epoch + 1)
+
+            logger.warning(f"[rank{rank}] entering checkpoint barrier epoch {epoch+1}")
+            barrier()
+            logger.warning(f"[rank{rank}] finished checkpoint barrier epoch {epoch+1}")
 
         # ------------------------------------------------------------------
-        # Checkpoint + metrics
+        # Done
         # ------------------------------------------------------------------
         if is_main_process():
-            entry = {
-                "epoch":      epoch + 1,
-                "train_loss": round(avg_loss, 6),
-                "head_lr":    round(head_lr, 10),
-                "epoch_secs": round(epoch_secs, 1),
-                "opt_step":   opt_step,
-                **val_metrics,
-            }
-            history.append(entry)
-            save_json({"history": history}, str(out_dir / "metrics.json"))
-            append_metrics_csv(entry, str(out_dir / "metrics.csv"))
+            elapsed = (time.perf_counter() - t_total) / 60
+            logger.info(
+                f"Training complete: {args.epochs} epochs in {elapsed:.1f} min"
+            )
+            logger.info(f"Best top5_acc: {best_top5:.4f}")
+            logger.info(f"Checkpoints: {ckpt_dir}")
+            if args.smoke_test:
+                logger.info("SMOKE TEST PASSED")
 
-            is_best = val_metrics.get("top5_acc", 0.0) > best_top5
-            if is_best:
-                best_top5 = val_metrics["top5_acc"]
-                logger.info(f"  New best top5_acc: {best_top5:.4f}")
+        if use_wandb:
+            import wandb
+            wandb.finish()
 
-            raw_save   = model.module if is_ddp else model
-            ckpt_state = {
-                "epoch":                epoch,
-                "model_state_dict":     raw_save.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "scheduler_state_dict": scheduler.state_dict(),
-                "scaler_state_dict":    scaler.state_dict(),
-                "metrics":              entry,
-                "config":               config,
-                "idx_to_species":       idx_to_species,
-                "encoders":             encoders,
-            }
+        if is_ddp:
+            import torch.distributed as dist
+            dist.destroy_process_group()
 
-            if args.no_epoch_snapshots:
-                # Scout policy: only best.pt (when val improves) + last.pt.
-                # Net writes per run: 2 files instead of N epoch snapshots.
-                if is_best:
-                    save_checkpoint(
-                        ckpt_state, path=str(ckpt_dir / "best.pt"),
-                    )
-            elif (epoch + 1) % args.save_every == 0:
-                save_checkpoint(
-                    ckpt_state,
-                    path=str(ckpt_dir / f"epoch_{epoch+1:03d}.pt"),
-                    is_best=is_best,
-                    best_path=str(ckpt_dir / "best.pt"),
-                )
-            save_checkpoint(ckpt_state, path=str(ckpt_dir / "last.pt"))
-
-            if use_wandb:
-                import wandb
-                wandb.log({"train_loss": avg_loss, **val_metrics}, step=epoch + 1)
-
-        logger.warning(f"[rank{rank}] entering checkpoint barrier epoch {epoch+1}")
-        barrier()
-        logger.warning(f"[rank{rank}] finished checkpoint barrier epoch {epoch+1}")
-
-    # ------------------------------------------------------------------
-    # Done
-    # ------------------------------------------------------------------
-    if is_main_process():
-        elapsed = (time.perf_counter() - t_total) / 60
-        logger.info(
-            f"Training complete: {args.epochs} epochs in {elapsed:.1f} min"
-        )
-        logger.info(f"Best top5_acc: {best_top5:.4f}")
-        logger.info(f"Checkpoints: {ckpt_dir}")
-        if args.smoke_test:
-            logger.info("SMOKE TEST PASSED")
-
-    if use_wandb:
-        import wandb
-        wandb.finish()
-
-    if is_ddp:
-        import torch.distributed as dist
-        dist.destroy_process_group()
+        telemetry.emit("run.end", status="ok")
+    except Exception:
+        telemetry.emit("run.end", status="failed")
+        raise
 
 
 if __name__ == "__main__":

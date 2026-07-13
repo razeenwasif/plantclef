@@ -297,6 +297,44 @@ Directions with a hypothesis but no implementation yet.
 
 ---
 
+## Tooling TODOs
+
+Not research directions — research-adjacent tooling that would speed up
+the work above without rewriting any inference code.
+
+* **arXiv MCP server.** Wire Claude Code into arXiv search/fetch so the
+  BACKLOG's novel-strategy hunt (phenology, long-tail, retrieval-
+  augmented classification, GFNet spectral vision, AD-TD dual teacher,
+  Frank-Wolfe + island biogeography, conformal prediction) can grep
+  related work without leaving the session. Two candidates:
+    * [`blazickjp/arxiv-mcp-server`](https://github.com/blazickjp/arxiv-mcp-server)
+      - most established; ships a `.mcpb` one-click install bundle for
+      Claude Desktop, search + paper download + analysis tools.
+    * [`Tejas242/arxiv-mcp`](https://github.com/Tejas242/arxiv-mcp) -
+      smaller surface area (search + analyze + download), simpler if
+      we only need lookup.
+  Lean toward `blazickjp` unless the bundle pulls in too much; both
+  share the same arXiv API underneath so the lookup quality is
+  equivalent.
+* **HuggingFace MCP server.** The cRT pivot already loads three HF
+  backbones (BioCLIP v2, DINOv3-Large, ConvNeXt-V2-Large) and the
+  AD-TD plan adds DeiT student + DINOv3 teacher. Pointing Claude at
+  `https://huggingface.co/mcp` exposes model / dataset / Space /
+  paper search and Hub-doc queries as tool calls, removing the
+  "go look this up on huggingface.co" round trip when scoping a new
+  backbone or trying to identify a community Gradio Space for a
+  specific task.
+    * Official: [`huggingface/hf-mcp-server`](https://github.com/huggingface/hf-mcp-server)
+      hosted at <https://huggingface.co/mcp>.
+  This is the obvious low-risk pick (vendor-maintained, stable URL).
+
+Skip everything else for now: GitHub MCP duplicates the `gh` CLI we
+already use fluently; database / Slack / Notion / Kaggle MCPs add
+nothing because experiment results live in markdown reports and
+submission CSVs that the existing Read/Write/Bash already handle.
+
+---
+
 ## Where to find more
 
 * `report/sections/appendix_development_trace.tex`, "Considered

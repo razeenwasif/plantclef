@@ -3,6 +3,96 @@
 All notable changes to the PlantCLEF 2026 codebase after the paper was
 submitted. Dates are in `YYYY-MM-DD`.
 
+## [Unreleased] - 2026-06-11
+
+Adds a torch-free smoke path so the full Nexus loop (request → spawner
+→ shim → telemetry → monitor → dashboard) can be exercised end-to-end
+in ~20 s on a machine with no torch and no GPU, and hardens how the
+shim locates `torchrun`. No model, data, or schedule changes;
+standalone `torchrun` invocations are untouched. (Nexus-side
+counterparts — the Start-Run modal's "Smoke test" toggle, the
+`start_smoke_pod.sh` launcher, the full-tail OOM-classification fix,
+and the sweep-child retry gating — are in the Nexus CHANGELOG.)
+
+### Nexus integration
+
+- **Add `src/nexus_smoke.py`** — stdlib-only fake trainer driven by
+  the *real* `src/training/telemetry.py`. Binds rank 0 / world 1
+  (phase from `PLANTCLEF_PHASE`), emits `run.start` with a small
+  snapshot, a 5 s heartbeat, then one `step` event per step
+  (deterministic decaying loss, ramping `local_acc`) every
+  `--step-interval` seconds (default 0.6) for `--steps` steps
+  (default 25), writing `{"step": i}` to
+  `<output-dir>/checkpoints/last.pt` every 5 steps, then
+  `validation.end` (acc 0.87) and `run.end` status `ok`. `--resume`
+  continues from the checkpoint's step + 1. `--oom-at <step>` prints
+  a realistic multi-line `torch.cuda.OutOfMemoryError` traceback
+  (containing the literal `CUDA out of memory`) to stderr and exits 1
+  *without* a `run.end` — exactly the shape Nexus's failure
+  classification and auto-retry key on. Unknown flags are ignored
+  (`parse_known_args`), so spawner-injected args like `--batch-size`
+  are accepted as logged no-ops.
+- **`nexus_entry.py` grows a consumed `--smoke` flag.** When set, the
+  shim launches `sys.executable src/nexus_smoke.py` with the same env
+  mapping, cwd, and exit-code propagation as the real path, instead
+  of `torchrun` — the smoke trainer is stdlib-only, so whatever
+  python runs the shim works.
+- **Robust `torchrun` resolution (review fix).** The non-smoke path
+  no longer assumes a bare `torchrun` on `PATH`: resolution order is
+  `$PLANTCLEF_TORCHRUN` if set, else `<repo>/.venv/bin/torchrun` if
+  it exists, else `shutil.which("torchrun")`; if none resolve, the
+  shim prints one clear line to stderr ("torchrun not found; set
+  PLANTCLEF_TORCHRUN or install torch in `<repo>/.venv`") and exits 3
+  before spawning anything. `--print-cmd` dry-runs keep working on
+  torch-less boxes — an unresolved launcher prints the placeholder
+  `torchrun` instead of exiting.
+
+## [Unreleased] - 2026-06-10
+
+Wires the repository into Nexus (the Firestore-mediated training
+control plane) so single-node runs of the shared multitask trainer can
+be launched and monitored from the Nexus dashboard. No model, data, or
+schedule changes; standalone `torchrun` invocations keep working
+exactly as before — telemetry is soft-imported and defaults its sink to
+`none` (no files written, no heartbeat thread, no atexit handler) unless
+the run is launched under Nexus (`PLANTCLEF_RUN_ID_TEMPLATE` /
+`PLANTCLEF_TELEMETRY` set), and binding is guarded so a sink failure can
+never abort training.
+
+### Nexus integration
+
+- **Add `src/nexus_entry.py`** — adapter shim used as the Nexus pod's
+  `--trainer-cmd`. Consumes the spawner-injected flags (`--name`,
+  `--phase`, `--seed`, `--telemetry-dir`, optional `--dataset` →
+  `--train-image-root`), passes everything else through verbatim to
+  `shared/bioclip25_multitask/train.py`, maps the Nexus env protocol
+  onto ours (`PLANTCLEF_TELEMETRY_DIR`, `PLANTCLEF_SEED`,
+  `PLANTCLEF_NAME`, `PLANTCLEF_PHASE`,
+  `CLUSTER_HOST_ID=$ORACLE_HOST_ID`, `PLANTCLEF_TELEMETRY=file`,
+  `PYTHONPATH` including the repo root so `src.training.telemetry`
+  imports under torchrun), and launches single-node
+  `torchrun --standalone` with inherited stdio so worker OOM text
+  reaches Nexus's stderr capture. `--print-cmd` /
+  `PLANTCLEF_DRYRUN=1` print the resolved argv + env without running.
+- **Instrument `shared/bioclip25_multitask/train.py`** with the JSONL
+  telemetry the Nexus run monitor tails (mirroring the pattern already
+  in `src/training/trainer.py`): `run.start` with a config/git
+  snapshot after distributed setup, `step` (step + smoothed loss) on
+  the step-log cadence, `validation.end` (top-1 acc) after each
+  validation pass, informational `checkpoint.save` after each
+  `last.pt` write, `run.end` with status `ok`/`failed` (the training
+  body is wrapped so exceptions emit `failed` and re-raise), plus a
+  15 s heartbeat thread. Imports are soft — the trainer runs unchanged
+  when the telemetry module or env vars are absent.
+- **Nexus-compatible run-id template bridge.** The shim forwards
+  Nexus's `ORACLE_RUN_ID_TEMPLATE` verbatim as
+  `PLANTCLEF_RUN_ID_TEMPLATE` (already honoured by
+  `src/training/telemetry.py`'s `{rank}` substitution), so per-rank
+  JSONL filenames keep the `oracle_…_r{rank}_…` stem that Nexus's
+  `run_monitor.py` globs (`oracle_*.jsonl`) and rank-strips — every
+  rank aggregates into the single Firestore run doc the spawner
+  pre-created, with zero changes on the Nexus monitor side.
+
 ## [Unreleased] - 2026-05-30
 
 Structural split into two research streams (`quadrat/` and

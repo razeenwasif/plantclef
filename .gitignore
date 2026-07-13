@@ -82,3 +82,9 @@ data/plantnet300k_manifest.csv
 # OS
 .DS_Store
 Thumbs.db
+
+# Local datasets (7 GB+, never commit)
+quadrat/data/
+
+# Report build artifact
+report/pdfa.xmpi
